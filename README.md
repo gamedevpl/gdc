@@ -12,12 +12,11 @@ Interactive 3D WebGL2 dioramas explaining the hidden rules behind video games, f
 
 ## Controls
 
-- **Drag** — Orbit and tilt the 3D diorama
-- **Scroll / Pinch** — Zoom in and out
-- **`Space`** — Pause or resume simulation
-- **`R`** — Reset diorama and camera
-- **`1`–`3`** — Jump directly to an entry
-- **Click tile (A\* Maze)** — Toggle wall / floor (`Shift+Click` moves Goal)
+- **WASD / Arrow Keys** — Drive your car (Rubber Banding), move your Knight (Attack Tokens), or walk the Hero through the stone maze (A\*)
+- **Left-Click / `J`** — Rune sword slash (Attack Tokens), steer toward point (Rubber Banding), or toggle maze walls (A\*, `Shift+Click` moves Goal)
+- **`Space` / Right-Click** — Nitro boost (Rubber Banding), shield block & timed parry (Attack Tokens), or Auto-Solve (A\*)
+- **Drag** — Orbit and tilt the 3D diorama · **Scroll / Pinch** — Zoom
+- **`P`** — Pause/resume · **`R`** — Reset · **`1`–`3`** — Switch entry
 
 ## Running locally
 

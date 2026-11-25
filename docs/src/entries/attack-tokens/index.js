@@ -1,5 +1,6 @@
-// Interactive Entry #2: Attack Tokens (Blender Knight vs 5 Skeleton Warriors)
-// Toggle between OFF (all 5 dogpile at once!), 1 Token (fair cinematic turns), and 2 Tokens (hard mode)!
+// Playable Entry #2: Attack Tokens (Playable 3D Blender Knight vs 5 Skeleton Warriors Arena!)
+// WASD/Arrows = Move Knight, Left-Click/J/E = Rune Sword Slash, Space/Right-Click/K = Shield Block & Timed Parry!
+// Switch live between 1 Token (winnable!), Tokens OFF (5-skeleton dogpile chaos!), and 2 Tokens (hard mode!).
 import { createArenaRenderer } from "./arena-renderer.js";
 
 function project3D(world, vp, w, h) {
@@ -31,20 +32,63 @@ function drawBadge(ctx, x, y, text, bg, fg = "#ffffff", maxW = 1200) {
   ctx.restore();
 }
 
+function drawCombatHud(ctx, ow, state, lang) {
+  if (ow < 520) return;
+  const pl = lang === "pl";
+  const boxW = Math.min(ow - 24, 430);
+  const boxH = 38;
+  const x = ow - boxW - 18;
+  const y = 78;
+  ctx.save();
+  ctx.fillStyle = "rgba(21,20,35,0.85)";
+  ctx.beginPath();
+  ctx.roundRect(x, y, boxW, boxH, 8);
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = state.playerControl ? "#00e4ac" : "#eea75e";
+  ctx.stroke();
+
+  const lbl = state.playerControl
+    ? (pl
+      ? `HP ${Math.round(state.hp)} · KO ${state.kills} · PAROWANIA ${state.parries} · WASD / LPM / SPACJA`
+      : `HP ${Math.round(state.hp)} · KOs ${state.kills} · PARRIES ${state.parries} · PLAY`)
+    : (pl ? `AUTO-DEMO · RUSZ SIĘ (WASD / KLIK)` : `AUTO-DEMO · MOVE WITH WASD / CLICK`);
+  ctx.font = "700 12px 'Courier New', monospace";
+  ctx.fillStyle = state.playerControl ? "#76ddaf" : "#ffe1a2";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(lbl, x + 12, y + boxH / 2 + 0.5);
+  ctx.restore();
+}
+
+function angleDiff(a, b) {
+  let d = a - b;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
 export function createEntry(gl) {
   const renderer = createArenaRenderer(gl);
-  let tokenCount = 1; // 0 = OFF (dogpile!), 1 = Fair 1-token, 2 = Hard 2-tokens
+  let tokenCount = 1; // 0 = OFF (chaos), 1 = Fair, 2 = Hard
+  let playerControl = false;
+  let rightMouseBlock = false;
   let time = 0;
   let hp = 100;
   let koTimer = 0;
+  let kills = 0;
+  let parries = 0;
   let turnTimer = 0;
   let activeIds = [0];
-  let flyOrb = null; // { fromId, toId, t }
+  let flyOrb = null;
+  let bannerMsg = null; // { text, bg, fg, timer }
   const sparks = [];
 
   const hero = {
     x: 0, y: 0, z: 0, yaw: 0,
     torsoYaw: 0, headYaw: 0, shieldPitch: 0.18, swordPitch: 0, tilt: 0, hitFlash: 0,
+    slashTimer: 0, slashCooldown: 0,
+    blocking: false, blockStartTime: -10,
   };
 
   const guards = Array.from({ length: 5 }, (_, i) => ({
@@ -55,137 +99,358 @@ export function createEntry(gl) {
     torsoYaw: 0, shieldPitch: 0.1, swordPitch: 0, tilt: 0,
     slashAlpha: 0,
     phase: i * 1.25,
-    attackProgress: 0,
+    hp: 3, stunTimer: 0, hitFlash: 0,
+    attackTimer: 0, dealtHitThisSwing: false,
+    knockVx: 0, knockVz: 0,
   }));
 
   function spawnSparks(x, z, color, n = 10) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
-      const spd = 1.2 + Math.random() * 2.8;
+      const spd = 1.4 + Math.random() * 3.0;
       sparks.push({
-        x, y: 0.8 + Math.random() * 0.5, z,
-        vx: Math.cos(a) * spd, vy: 1.5 + Math.random() * 2.2, vz: Math.sin(a) * spd,
+        x, y: 0.85 + Math.random() * 0.5, z,
+        vx: Math.cos(a) * spd, vy: 1.6 + Math.random() * 2.3, vz: Math.sin(a) * spd,
         r: color[0], g: color[1], b: color[2], life: 0.9,
       });
     }
   }
 
-  function reset() {
+  function showBanner(text, bg, fg = "#ffffff", dur = 0.85) {
+    bannerMsg = { text, bg, fg, timer: dur };
+  }
+
+  function positionGuardsInRing() {
+    for (const g of guards) {
+      g.x = hero.x + Math.sin(g.baseAngle) * 4.3;
+      g.z = hero.z + Math.cos(g.baseAngle) * 4.3;
+      g.yaw = Math.atan2(hero.x - g.x, hero.z - g.z);
+      g.hp = 3; g.stunTimer = 0; g.hitFlash = 0;
+      g.attackTimer = 0; g.dealtHitThisSwing = false;
+      g.knockVx = 0; g.knockVz = 0; g.slashProg = 0; g.tilt = 0;
+    }
+  }
+
+  function reset(keepPlayerMode = false) {
     time = 0; hp = 100; koTimer = 0; turnTimer = 0;
+    if (!keepPlayerMode) { kills = 0; parries = 0; }
     activeIds = tokenCount === 0 ? [] : tokenCount === 1 ? [0] : [0, 2];
     flyOrb = null;
+    bannerMsg = null;
     sparks.length = 0;
-    hero.tilt = 0; hero.hitFlash = 0;
+    hero.x = 0; hero.z = 0; hero.yaw = 0;
+    hero.tilt = 0; hero.hitFlash = 0; hero.slashTimer = 0; hero.slashCooldown = 0;
+    positionGuardsInRing();
+  }
+  reset();
+
+  function passTokenFrom(fromId) {
+    if (tokenCount === 0) return;
+    const nextPrimary = (fromId + 1) % 5;
+    flyOrb = { fromId, toId: nextPrimary, t: 0 };
+    activeIds = tokenCount === 1 ? [nextPrimary] : [nextPrimary, (nextPrimary + 2) % 5];
+    turnTimer = 0;
+    for (const g of guards) { g.attackTimer = 0; g.dealtHitThisSwing = false; }
   }
 
-  function setTokens(n) {
-    tokenCount = n;
-    reset();
-  }
-
-  function update(dt) {
-    const h = Math.min(0.05, dt);
-    time += h;
-    hero.hitFlash = Math.max(0, hero.hitFlash - h * 2.2);
-
-    if (tokenCount === 0) {
-      // DOGPILE CHAOS! All 5 rush in at once -> instant K.O. -> brief pause -> auto-reset
-      if (koTimer > 0) {
-        koTimer -= h;
-        hero.tilt = Math.min(1.45, hero.tilt + h * 6);
-        if (koTimer <= 0) reset();
-      } else {
-        const rush = Math.min(1, time / 0.85);
-        const rad = 4.3 - rush * 2.85;
-        for (const g of guards) {
-          const ang = g.baseAngle + time * 0.28;
-          g.x = Math.sin(ang) * rad;
-          g.z = Math.cos(ang) * rad;
-          g.yaw = Math.atan2(-g.x, -g.z);
-          g.hasToken = false;
-          g.danger = rush;
-          const sw = Math.sin(time * 13 + g.phase);
-          g.swordPitch = rush > 0.7 ? sw * 1.15 : 0.1;
-          g.torsoYaw = rush > 0.7 ? sw * 0.45 : 0;
-          g.slashAlpha = rush > 0.7 && sw > 0.45 ? (sw - 0.45) * 1.8 : 0;
-        }
-        if (rush > 0.75) {
-          hp = Math.max(0, hp - h * 72);
-          hero.hitFlash = 0.85;
-          hero.yaw = Math.sin(time * 9) * 1.2;
-          hero.shieldPitch = 0.7;
-          if (Math.random() < 0.45) spawnSparks(0, 0, [1.0, 0.25, 0.22], 3);
-          if (hp <= 0) {
-            koTimer = 1.9;
-            spawnSparks(0, 0, [1.0, 0.22, 0.18], 18);
+  function performHeroSlash(aimWorld = null) {
+    if (koTimer > 0 || hero.slashCooldown > 0) return;
+    playerControl = true;
+    if (aimWorld) {
+      const dx = aimWorld[0] - hero.x, dz = aimWorld[2] - hero.z;
+      if (Math.hypot(dx, dz) > 0.2) hero.yaw = Math.atan2(dx, dz);
+    }
+    hero.slashTimer = 0.28;
+    hero.slashCooldown = 0.34;
+    const fx = Math.sin(hero.yaw), fz = Math.cos(hero.yaw);
+    let hitAny = false;
+    for (const g of guards) {
+      const dx = g.x - hero.x, dz = g.z - hero.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 2.75) {
+        const dot = (dx * fx + dz * fz) / Math.max(0.01, dist);
+        if (dot > 0.12 || dist < 1.35) {
+          hitAny = true;
+          g.hp -= 1;
+          g.hitFlash = 1.0;
+          g.stunTimer = 0.45;
+          const push = 6.2;
+          g.knockVx = (dx / Math.max(0.1, dist)) * push;
+          g.knockVz = (dz / Math.max(0.1, dist)) * push;
+          spawnSparks(g.x, g.z, [0.35, 1.0, 0.90], 12);
+          if (g.hp <= 0) {
+            kills++;
+            spawnSparks(g.x, g.z, [1.0, 0.85, 0.25], 20);
+            showBanner(`K.O.! (${kills})`, "#f59e0b", "#1c1204", 0.75);
+            // Respawn skeleton cleanly on opposite perimeter & pass token if he held it!
+            const wasActive = activeIds.includes(g.id);
+            g.hp = 3;
+            g.stunTimer = 0.4;
+            g.baseAngle += Math.PI * 0.85;
+            g.x = Math.max(-5.1, Math.min(5.1, Math.sin(g.baseAngle) * 4.8));
+            g.z = Math.max(-5.6, Math.min(5.6, Math.cos(g.baseAngle) * 4.8));
+            if (wasActive && tokenCount > 0) passTokenFrom(g.id);
           }
         }
       }
+    }
+    if (!hitAny) {
+      spawnSparks(hero.x + fx * 1.1, hero.z + fz * 1.1, [0.30, 0.95, 0.85], 4);
+    }
+  }
+
+  function applyEnemyHitToHero(g) {
+    if (koTimer > 0) return;
+    // Check if hero is facing the attacker while blocking/parrying!
+    const toEnemyYaw = Math.atan2(g.x - hero.x, g.z - hero.z);
+    const facingAttacker = Math.abs(angleDiff(hero.yaw, toEnemyYaw)) < 1.38;
+    const isParryWindow = hero.blocking && (time - hero.blockStartTime) < 0.34;
+
+    if (playerControl && hero.blocking && facingAttacker) {
+      if (isParryWindow) {
+        parries++;
+        g.stunTimer = 1.35;
+        g.knockVx = (g.x - hero.x) * 3.8;
+        g.knockVz = (g.z - hero.z) * 3.8;
+        spawnSparks((hero.x + g.x) * 0.5, (hero.z + g.z) * 0.5, [0.25, 1.0, 0.95], 22);
+        showBanner("PERFECT PARRY!", "#00e4ac", "#042119", 0.85);
+        if (tokenCount > 0 && activeIds.includes(g.id)) passTokenFrom(g.id);
+        return;
+      }
+      // Clean shield block!
+      hp = Math.max(1, hp - 5);
+      g.knockVx = (g.x - hero.x) * 2.2;
+      g.knockVz = (g.z - hero.z) * 2.2;
+      spawnSparks((hero.x + g.x) * 0.5, (hero.z + g.z) * 0.5, [1.0, 0.88, 0.35], 12);
+      showBanner("BLOCKED!", "#38bdf8", "#041c24", 0.55);
+      return;
+    }
+
+    // Direct hit (or hit from behind while blocking another enemy — classic dogpile punishment!)
+    const dmg = tokenCount === 0 ? 22 : 18;
+    hp = Math.max(0, hp - dmg);
+    hero.hitFlash = 1.0;
+    spawnSparks(hero.x, hero.z, [1.0, 0.22, 0.20], 14);
+    if (playerControl && hero.blocking && !facingAttacker) {
+      showBanner("HIT FROM BEHIND!", "#ef4444", "#ffffff", 0.75);
+    }
+    if (hp <= 0) {
+      koTimer = 1.9;
+      spawnSparks(hero.x, hero.z, [1.0, 0.22, 0.18], 22);
+      showBanner("K.O.! (0 HP)", "#ef4444", "#ffffff", 1.7);
+    }
+  }
+
+  function update(dt, keys = new Set(), pointer = {}) {
+    const h = Math.min(0.05, Math.max(0.001, dt));
+    time += h;
+    hero.hitFlash = Math.max(0, hero.hitFlash - h * 2.4);
+    hero.slashTimer = Math.max(0, hero.slashTimer - h);
+    hero.slashCooldown = Math.max(0, hero.slashCooldown - h);
+    if (bannerMsg) {
+      bannerMsg.timer -= h;
+      if (bannerMsg.timer <= 0) bannerMsg = null;
+    }
+
+    // Detect live keyboard input for seamless instant player control!
+    const up = keys.has("KeyW") || keys.has("ArrowUp");
+    const dn = keys.has("KeyS") || keys.has("ArrowDown");
+    const lt = keys.has("KeyA") || keys.has("ArrowLeft");
+    const rt = keys.has("KeyD") || keys.has("ArrowRight");
+    const blockKey = keys.has("Space") || keys.has("KeyK") || keys.has("ShiftLeft") || keys.has("ShiftRight") || rightMouseBlock;
+
+    if (up || dn || lt || rt || blockKey) playerControl = true;
+
+    if (koTimer > 0) {
+      koTimer -= h;
+      hero.tilt = Math.min(1.45, hero.tilt + h * 6);
+      if (koTimer <= 0) reset(playerControl);
+    } else if (playerControl) {
+      hero.tilt *= Math.max(0, 1 - h * 9);
+
+      const wasBlocking = hero.blocking;
+      hero.blocking = blockKey && hero.slashTimer <= 0.05;
+      if (hero.blocking && !wasBlocking) hero.blockStartTime = time;
+
+      // Move Knight inside castle floor bounds (X: [-5.0, 5.0], Z: [-5.5, 5.5])
+      let mx = (rt ? 1 : 0) - (lt ? 1 : 0);
+      let mz = (dn ? 1 : 0) - (up ? 1 : 0);
+      const ml = Math.hypot(mx, mz);
+      const spd = hero.blocking ? 2.6 : 5.2;
+      if (ml > 0.01) {
+        mx /= ml; mz /= ml;
+        hero.x = Math.max(-4.9, Math.min(4.9, hero.x + mx * spd * h));
+        hero.z = Math.max(-5.4, Math.min(5.4, hero.z + mz * spd * h));
+        if (hero.slashTimer <= 0) {
+          const moveYaw = Math.atan2(mx, mz);
+          hero.yaw += angleDiff(moveYaw, hero.yaw) * Math.min(1, h * 11);
+        }
+      } else if (pointer?.world && hero.slashTimer <= 0) {
+        // Gently face mouse cursor when standing & aiming shield!
+        const dx = pointer.world[0] - hero.x, dz = pointer.world[2] - hero.z;
+        if (Math.hypot(dx, dz) > 0.4) {
+          hero.yaw += angleDiff(Math.atan2(dx, dz), hero.yaw) * Math.min(1, h * 9);
+        }
+      }
+
+      // Crisp Knight arm animations!
+      hero.shieldPitch = hero.blocking ? 1.05 : 0.22;
+      if (hero.slashTimer > 0) {
+        const u = 1 - hero.slashTimer / 0.28;
+        hero.swordPitch = -1.1 + Math.sin(u * Math.PI) * 2.45;
+        hero.torsoYaw = -0.55 + u * 1.15;
+        hero.slashProg = u;
+      } else {
+        hero.swordPitch = hero.blocking ? -0.35 : Math.sin(time * 3.5) * 0.1;
+        hero.torsoYaw *= Math.max(0, 1 - h * 10);
+        hero.slashProg = 0;
+      }
+
+      // Passive tiny regen in 1-token fair mode so fights stay heroic
+      if (tokenCount > 0 && hp < 100) hp = Math.min(100, hp + h * 1.2);
     } else {
-      // FAIR ATTACK TOKENS (1 or 2 golden tokens rotating visibly around the ring!)
-      hp = 100;
+      // Auto-Demo animation when visitor hasn't touched keys yet
       hero.tilt *= Math.max(0, 1 - h * 8);
-      turnTimer += h;
+      hero.blocking = false;
+    }
+
+    // Update all 5 Skeleton Warriors (reacting to hero's live position!)
+    if (flyOrb) {
+      flyOrb.t += h * 2.2;
+      if (flyOrb.t >= 1) flyOrb = null;
+    }
+
+    if (tokenCount === 0) {
+      // DOGPILE CHAOS — all 5 rush in simultaneously & attack!
+      for (const g of guards) {
+        g.hasToken = false;
+        g.danger = 1.0;
+        g.stunTimer = Math.max(0, g.stunTimer - h);
+        g.hitFlash = Math.max(0, g.hitFlash - h * 3);
+        g.x += g.knockVx * h; g.z += g.knockVz * h;
+        g.knockVx *= Math.max(0, 1 - h * 8); g.knockVz *= Math.max(0, 1 - h * 8);
+
+        const ang = g.baseAngle + time * 0.45;
+        const targetX = hero.x + Math.sin(ang) * 1.45;
+        const targetZ = hero.z + Math.cos(ang) * 1.45;
+        if (g.stunTimer <= 0 && koTimer <= 0) {
+          const dx = targetX - g.x, dz = targetZ - g.z;
+          const d = Math.hypot(dx, dz);
+          if (d > 0.1) {
+            const step = Math.min(d, 3.8 * h);
+            g.x += (dx / d) * step;
+            g.z += (dz / d) * step;
+          }
+          g.yaw = Math.atan2(hero.x - g.x, hero.z - g.z);
+          const distToHero = Math.hypot(hero.x - g.x, hero.z - g.z);
+          if (distToHero < 2.05) {
+            g.attackTimer += h;
+            const cyc = (g.attackTimer + g.phase * 0.22) % 1.05;
+            if (cyc < 0.45) {
+              g.swordPitch = -1.1 * (cyc / 0.45);
+              g.slashProg = 0;
+              g.dealtHitThisSwing = false;
+            } else if (cyc < 0.75) {
+              const u = (cyc - 0.45) / 0.30;
+              g.swordPitch = -1.1 + u * 2.35;
+              g.slashProg = u;
+              if (u > 0.45 && !g.dealtHitThisSwing) {
+                g.dealtHitThisSwing = true;
+                applyEnemyHitToHero(g);
+              }
+            } else {
+              g.swordPitch *= Math.max(0, 1 - h * 10);
+              g.slashProg = 0;
+            }
+          } else {
+            g.slashProg = 0;
+          }
+        } else {
+          g.tilt = g.stunTimer > 0 ? Math.sin(time * 28) * 0.22 : 0;
+          g.slashProg = 0;
+        }
+        g.x = Math.max(-5.2, Math.min(5.2, g.x));
+        g.z = Math.max(-5.8, Math.min(5.8, g.z));
+      }
+      if (!playerControl && koTimer <= 0) {
+        hero.yaw = Math.sin(time * 7) * 1.4;
+        hero.shieldPitch = 0.65;
+      }
+    } else {
+      // FAIR ATTACK TOKENS (1 or 2 golden tokens!)
       const TURN_DUR = 2.65;
-
+      turnTimer += h;
       if (turnTimer >= TURN_DUR) {
-        turnTimer = 0;
-        const oldPrimary = activeIds[0] ?? 0;
-        const nextPrimary = (oldPrimary + 1) % 5;
-        flyOrb = { fromId: oldPrimary, toId: nextPrimary, t: 0 };
-        activeIds = tokenCount === 1 ? [nextPrimary] : [nextPrimary, (nextPrimary + 2) % 5];
-      }
-      if (flyOrb) {
-        flyOrb.t += h * 2.2;
-        if (flyOrb.t >= 1) flyOrb = null;
+        passTokenFrom(activeIds[0] ?? 0);
       }
 
-      const primary = guards[activeIds[0] ?? 0];
-      // Hero smoothly faces primary token holder & parries/counters!
-      const targetYaw = Math.atan2(primary.x, primary.z);
-      let dy = targetYaw - hero.yaw;
-      while (dy > Math.PI) dy -= Math.PI * 2;
-      while (dy < -Math.PI) dy += Math.PI * 2;
-      hero.yaw += dy * Math.min(1, h * 7.0);
+      if (!playerControl) {
+        const primary = guards[activeIds[0] ?? 0];
+        hero.yaw += angleDiff(Math.atan2(primary.x - hero.x, primary.z - hero.z), hero.yaw) * Math.min(1, h * 7);
+        const cyc = turnTimer / TURN_DUR;
+        hero.shieldPitch = (cyc > 0.40 && cyc < 0.68) ? 0.92 : 0.20;
+        hero.swordPitch = (cyc > 0.65 && cyc < 0.90) ? Math.sin(((cyc - 0.65) / 0.25) * Math.PI) * 1.25 : -0.1;
+      }
 
       for (const g of guards) {
         const isAct = activeIds.includes(g.id) && (!flyOrb || flyOrb.toId !== g.id);
         g.hasToken = isAct;
         g.danger = 0;
-        const ang = g.baseAngle + time * 0.26;
-        const targetR = isAct ? 1.85 : 4.35;
-        const tx = Math.sin(ang) * targetR;
-        const tz = Math.cos(ang) * targetR;
-        g.x += (tx - g.x) * Math.min(1, h * 5.0);
-        g.z += (tz - g.z) * Math.min(1, h * 5.0);
-        g.yaw = Math.atan2(-g.x, -g.z);
+        g.stunTimer = Math.max(0, g.stunTimer - h);
+        g.hitFlash = Math.max(0, g.hitFlash - h * 3);
+        g.x += g.knockVx * h; g.z += g.knockVz * h;
+        g.knockVx *= Math.max(0, 1 - h * 8); g.knockVz *= Math.max(0, 1 - h * 8);
 
-        if (isAct) {
-          const cyc = (turnTimer / TURN_DUR);
-          if (cyc > 0.25 && cyc < 0.72) {
-            const u = (cyc - 0.25) / 0.47;
-            // Dramatic overhead windup -> crisp downward strike!
-            g.swordPitch = u < 0.45 ? -1.15 * (u / 0.45) : -1.15 + 2.45 * ((u - 0.45) / 0.55);
-            g.torsoYaw = u < 0.45 ? -0.45 * (u / 0.45) : -0.45 + 1.0 * ((u - 0.45) / 0.55);
-            g.slashAlpha = u > 0.48 && u < 0.82 ? Math.sin(((u - 0.48) / 0.34) * Math.PI) : 0;
-            if (Math.abs(u - 0.62) < h * 1.4) {
-              spawnSparks(g.x * 0.4, g.z * 0.4, [1.0, 0.82, 0.25], 10);
+        const ang = g.baseAngle + time * 0.30;
+        const targetR = isAct ? 1.75 : 4.25;
+        const tx = Math.max(-5.1, Math.min(5.1, hero.x + Math.sin(ang) * targetR));
+        const tz = Math.max(-5.6, Math.min(5.6, hero.z + Math.cos(ang) * targetR));
+        if (g.stunTimer <= 0 && koTimer <= 0) {
+          g.tilt *= Math.max(0, 1 - h * 10);
+          const dx = tx - g.x, dz = tz - g.z;
+          const d = Math.hypot(dx, dz);
+          const spd = isAct ? 4.4 : 3.4;
+          if (d > 0.08) {
+            const step = Math.min(d, spd * h);
+            g.x += (dx / d) * step;
+            g.z += (dz / d) * step;
+          }
+          g.yaw = Math.atan2(hero.x - g.x, hero.z - g.z);
+
+          if (isAct && Math.hypot(hero.x - g.x, hero.z - g.z) < 2.35) {
+            g.attackTimer += h;
+            const u = g.attackTimer / 1.15;
+            if (u < 0.48) {
+              // Clear readable windup so player can time their shield parry!
+              g.swordPitch = -1.25 * (u / 0.48);
+              g.torsoYaw = -0.45 * (u / 0.48);
+              g.slashProg = 0;
+            } else if (u < 0.80) {
+              const s = (u - 0.48) / 0.32;
+              g.swordPitch = -1.25 + s * 2.55;
+              g.torsoYaw = -0.45 + s * 1.05;
+              g.slashProg = s;
+              if (s > 0.42 && !g.dealtHitThisSwing) {
+                g.dealtHitThisSwing = true;
+                if (playerControl) applyEnemyHitToHero(g);
+                else spawnSparks((hero.x + g.x) * 0.5, (hero.z + g.z) * 0.5, [1.0, 0.85, 0.25], 10);
+              }
+            } else {
+              g.swordPitch *= Math.max(0, 1 - h * 8);
+              g.torsoYaw *= Math.max(0, 1 - h * 8);
+              g.slashProg = 0;
+              if (u >= 1.15) { g.attackTimer = 0; g.dealtHitThisSwing = false; }
             }
           } else {
-            g.swordPitch *= Math.max(0, 1 - h * 8);
-            g.torsoYaw *= Math.max(0, 1 - h * 8);
-            g.slashAlpha = 0;
+            g.swordPitch = Math.sin(time * 2.5 + g.phase) * 0.12;
+            g.torsoYaw = Math.sin(time * 1.8 + g.phase) * 0.10;
+            g.slashProg = 0;
           }
         } else {
-          g.swordPitch = Math.sin(time * 2.5 + g.phase) * 0.12;
-          g.torsoYaw = Math.sin(time * 1.8 + g.phase) * 0.10;
-          g.slashAlpha = 0;
+          g.tilt = g.stunTimer > 0 ? Math.sin(time * 26) * 0.24 : 0;
+          g.slashProg = 0;
         }
       }
-      // Hero shield parry & counter swing synced with primary attacker
-      const cyc = turnTimer / TURN_DUR;
-      hero.shieldPitch = (cyc > 0.40 && cyc < 0.68) ? 0.92 : 0.20;
-      hero.swordPitch = (cyc > 0.65 && cyc < 0.90) ? Math.sin(((cyc - 0.65) / 0.25) * Math.PI) * 1.25 : -0.1;
     }
 
     for (let i = sparks.length - 1; i >= 0; i--) {
@@ -197,7 +462,7 @@ export function createEntry(gl) {
     }
   }
 
-  function render(w, h, cam, ovCtx, ow = w, oh = h) {
+  function render(w, h, cam, ovCtx, ow = w, oh = h, lang = "en") {
     let tokenOrb = null;
     if (flyOrb) {
       const a = guards[flyOrb.fromId], b = guards[flyOrb.toId];
@@ -214,31 +479,44 @@ export function createEntry(gl) {
       w, h, cam, time, hero, guards,
       waitingRingAlpha: tokenCount > 0 ? 0.85 : 0.0,
       tokenOrb,
-      dangerFlash: tokenCount === 0 && koTimer <= 0 ? 0.55 : 0.0,
+      dangerFlash: tokenCount === 0 && koTimer <= 0 ? 0.45 : 0.0,
       sparks,
     });
 
     if (ovCtx) {
       ovCtx.clearRect(0, 0, ow, oh);
+      drawCombatHud(ovCtx, ow, { hp, kills, parries, playerControl }, lang);
+
       const pHero = project3D([hero.x, 2.55, hero.z], viewProj, ow, oh);
       if (pHero) {
-        const lbl = hp <= 0 ? "K.O.! (0 HP)" : `KNIGHT · ${Math.round(hp)} HP`;
-        drawBadge(ovCtx, pHero.x, pHero.y, lbl, hp <= 0 ? "#ef4444" : "#10b981", hp <= 0 ? "#fff" : "#062119", ow);
+        const lbl = hp <= 0
+          ? "K.O.! (0 HP)"
+          : hero.blocking
+            ? `BLOCK · ${Math.round(hp)} HP`
+            : `KNIGHT · ${Math.round(hp)} HP`;
+        drawBadge(ovCtx, pHero.x, pHero.y, lbl,
+          hp <= 0 ? "#ef4444" : hero.blocking ? "#38bdf8" : "#10b981",
+          hp <= 0 ? "#fff" : "#062119", ow);
+      }
+      if (bannerMsg) {
+        const pb = project3D([hero.x, 3.35, hero.z], viewProj, ow, oh);
+        if (pb) drawBadge(ovCtx, pb.x, pb.y, bannerMsg.text, bannerMsg.bg, bannerMsg.fg, ow);
       }
       if (tokenCount > 0) {
         for (const g of guards) {
           const pg = project3D([g.x, g.hasToken ? 2.95 : 2.35, g.z], viewProj, ow, oh);
           if (!pg) continue;
-          if (g.hasToken) drawBadge(ovCtx, pg.x, pg.y, "TOKEN", "#f59e0b", "#1c1204", ow);
+          if (g.stunTimer > 0.25) drawBadge(ovCtx, pg.x, pg.y, "STUNNED!", "#00e4ac", "#041c14", ow);
+          else if (g.hasToken) drawBadge(ovCtx, pg.x, pg.y, "TOKEN", "#f59e0b", "#1c1204", ow);
           else drawBadge(ovCtx, pg.x, pg.y, "WAITING", "rgba(18,28,48,0.88)", "#7dd3fc", ow);
         }
         if (tokenOrb) {
           const po = project3D([tokenOrb.x, tokenOrb.y + 0.55, tokenOrb.z], viewProj, ow, oh);
           if (po) drawBadge(ovCtx, po.x, po.y, "PASS!", "#fde047", "#1c1204", ow);
         }
-      } else if (koTimer <= 0 && time > 0.55) {
-        const pt = project3D([0, 3.25, 0], viewProj, ow, oh);
-        if (pt) drawBadge(ovCtx, pt.x, pt.y, "5× HIT AT ONCE!", "#ef4444", "#ffffff", ow);
+      } else if (koTimer <= 0 && !bannerMsg && time > 0.55) {
+        const pt = project3D([hero.x, 3.25, hero.z], viewProj, ow, oh);
+        if (pt) drawBadge(ovCtx, pt.x, pt.y, "5× ATTACK AT ONCE!", "#ef4444", "#ffffff", ow);
       }
     }
   }
@@ -252,14 +530,36 @@ export function createEntry(gl) {
         { id: "tok0", label: pl ? "Bez tokenów (Chaos)" : "Tokens: OFF (Chaos)", pressed: tokenCount === 0 },
         { id: "tok1", label: pl ? "1 Token (Fair)" : "1 Token (Fair)", pressed: tokenCount === 1 },
         { id: "tok2", label: pl ? "2 Tokeny (Hard)" : "2 Tokens (Hard)", pressed: tokenCount === 2 },
+        { id: "slash", label: pl ? "Cięcie (LPM / J)" : "Slash (Click / J)", pressed: false },
       ];
     },
     onAction(id) {
-      if (id === "tok0") setTokens(0);
-      if (id === "tok1") setTokens(1);
-      if (id === "tok2") setTokens(2);
+      if (id === "tok0") { tokenCount = 0; reset(playerControl); }
+      if (id === "tok1") { tokenCount = 1; reset(playerControl); }
+      if (id === "tok2") { tokenCount = 2; reset(playerControl); }
+      if (id === "slash") performHeroSlash(null);
     },
-    reset,
+    onKeyDown(code, repeat) {
+      if ((code === "KeyJ" || code === "KeyE" || code === "Enter") && !repeat) performHeroSlash(null);
+    },
+    onPointerDown({ button }) {
+      if (button === 2) {
+        playerControl = true;
+        rightMouseBlock = true;
+        return true; // claim right-click for shield block!
+      }
+      return false;
+    },
+    onPointerUp({ button }) {
+      if (button === 2) rightMouseBlock = false;
+    },
+    onClickWorld(worldPt, { button }) {
+      if (button === 0) performHeroSlash(worldPt);
+    },
+    getDebugState() {
+      return { playerControl, x: +hero.x.toFixed(2), z: +hero.z.toFixed(2), hp: Math.round(hp), kills, parries, tokenCount };
+    },
+    reset: () => reset(false),
     update,
     render,
   };

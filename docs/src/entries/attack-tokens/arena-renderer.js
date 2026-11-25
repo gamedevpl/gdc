@@ -838,6 +838,9 @@ export function createArenaRenderer(gl) {
     // Subtle crisp Hero ground ring (thin so the sculpted Knight stands out!)
     pushRing(out, hero.x, 0.05, hero.z, 0.62, 0.72, 28,
       0.14 + hero.hitFlash * 1.4, 1.08 - hero.hitFlash * 0.88, 0.90 - hero.hitFlash * 0.74, 0.72);
+    if ((hero.slashProg ?? 0) > 0.02) {
+      pushSlashArc(out, hero.x, hero.y, hero.z, hero.yaw, hero.slashProg, 0.28, 1.95, 1.65);
+    }
 
     // Glowing Cyan Waiting Perimeter Ring around Hero!
     if (waitingRingAlpha > 0.01) {

@@ -1,5 +1,5 @@
 // Game Design Codex (GDC) shared application shell — sibling to FX Lab.
-// Fullscreen WebGL2 + crisp 2D badge overlay, orbit/zoom, click raypicking, catalog modal, EN/PL i18n.
+// Fullscreen WebGL2 + crisp 2D HUD overlay, live keyboard/mouse gameplay routing, orbit/zoom, EN/PL i18n.
 import { CODEX_ENTRIES, getEntryMeta } from "./catalog.js";
 import { clamp, cameraBasisFromOrbit, screenRayToPlaneY } from "./gl-utils.js";
 
@@ -10,6 +10,9 @@ const overlay = $("ov");
 const ovCtx = overlay.getContext("2d");
 const gl = canvas.getContext("webgl2", { antialias: true, alpha: false, preserveDrawingBuffer: true });
 
+// Always resolve assets (thumbs, etc.) relative to /gdc/ root regardless of pushState/replaceState subroutes!
+const SITE_ROOT = new URL("../", import.meta.url).href;
+
 const params = new URLSearchParams(location.search);
 if (params.get("hud") === "0") document.body.classList.add("no-hud");
 
@@ -19,26 +22,21 @@ let activeMeta = null;
 let activeEntry = null;
 const entryCache = new Map();
 
-// Detect root base path so clean routes (/gdc/, /gdc/astar/, /astar/) all resolve thumbnails & links properly
-const isSubroute = document.documentElement.dataset.subroute === "1";
-const ROOT_PREFIX = isSubroute ? "../" : "./";
-
 const cam = { yaw: 0.16, pitch: 0.80, dist: 24.5, targetX: 0, targetY: 0, targetZ: 0.2, fovDeg: 42 };
 let defaultCam = { ...cam };
 
-function showNoGl() {
+// Shared live input state forwarded to playable mini-games!
+const keys = new Set();
+const pointer = { x: 0, y: 0, world: null, down: false, button: 0 };
+
+if (!gl) {
   $("nogl").hidden = false;
   $("noglBody").textContent = lang === "pl"
     ? "Ta strona wymaga przeglądarki ze wsparciem WebGL2."
     : "This interactive 3D codex requires a browser with WebGL2 support.";
-}
-
-if (!gl) {
-  showNoGl();
   throw new Error("WebGL2 unavailable");
 }
 
-// Responsive sizing
 let cssW = window.innerWidth;
 let cssH = window.innerHeight;
 let dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -53,22 +51,28 @@ function resize() {
     canvas.width = pw;
     canvas.height = ph;
   }
-  if (overlay.width !== cssW || overlay.height !== cssH) {
-    overlay.width = cssW;
-    overlay.height = cssH;
+  if (overlay.width !== pw || overlay.height !== ph) {
+    overlay.width = pw;
+    overlay.height = ph;
   }
 }
 window.addEventListener("resize", resize);
 resize();
 
-// Adjust camera distance slightly on narrow portrait screens so the whole diorama fits comfortably
 function applyEntryCam(base) {
   const portraitBoost = cssH > cssW ? 1.36 : 1.0;
   defaultCam = { ...base, dist: base.dist * portraitBoost };
   Object.assign(cam, defaultCam);
 }
 
-// Build top quick-switcher pills
+function projectClientToWorldY0(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+  const ndcY = 1 - ((clientY - rect.top) / rect.height) * 2;
+  const basis = cameraBasisFromOrbit(cam.yaw, cam.pitch, cam.dist, cam.targetX, cam.targetY, cam.targetZ);
+  return screenRayToPlaneY(ndcX, ndcY, basis, (cam.fovDeg * Math.PI) / 180, rect.width / Math.max(1, rect.height), 0);
+}
+
 function renderRibbon() {
   const ribbon = $("codexRibbon");
   ribbon.innerHTML = "";
@@ -87,8 +91,8 @@ function renderCatalogModal() {
   const grid = $("catalogGrid");
   $("catalogTitle").textContent = lang === "pl" ? "Kodeks Projektowania Gier" : "Game Design Codex";
   $("catalogSub").textContent = lang === "pl"
-    ? `${CODEX_ENTRIES.length} interaktywne dioramy 3D — kliknij, żeby przetestować mechanikę`
-    : `${CODEX_ENTRIES.length} interactive 3D dioramas — click any concept to try it live`;
+    ? `${CODEX_ENTRIES.length} grywalne dioramy 3D — kliknij i zagraj klawiaturą lub myszką`
+    : `${CODEX_ENTRIES.length} playable 3D dioramas — click any concept to play live`;
   grid.innerHTML = "";
   for (const item of CODEX_ENTRIES) {
     const card = document.createElement("button");
@@ -96,9 +100,10 @@ function renderCatalogModal() {
     card.className = "gdc-card";
     card.style.setProperty("--gdc-accent", item.accent);
     if (item.id === activeMeta?.id) card.setAttribute("aria-current", "true");
+    const thumbUrl = new URL(item.thumb, SITE_ROOT).href;
     card.innerHTML = `
       <div class="gdc-card-thumb">
-        <img src="${ROOT_PREFIX}${item.thumb}" alt="${item.title[lang]}" loading="lazy">
+        <img src="${thumbUrl}" alt="${item.title[lang]}" loading="lazy">
       </div>
       <div class="gdc-card-body">
         <div class="gdc-card-top">
@@ -132,9 +137,9 @@ function renderHud() {
   $("entryNote").textContent = activeMeta.note[lang];
   $("hintLine").textContent = activeMeta.hint[lang];
   $("pauseBtn").textContent = paused
-    ? (lang === "pl" ? "Wznów" : "Resume")
-    : (lang === "pl" ? "Pauza" : "Pause");
-  $("resetBtn").textContent = lang === "pl" ? "Reset" : "Reset";
+    ? (lang === "pl" ? "Wznów (P)" : "Resume (P)")
+    : (lang === "pl" ? "Pauza (P)" : "Pause (P)");
+  $("resetBtn").textContent = lang === "pl" ? "Reset (R)" : "Reset (R)";
 
   const actionsWrap = $("entryActions");
   actionsWrap.innerHTML = "";
@@ -157,10 +162,11 @@ function renderHud() {
 async function loadEntry(id, pushHistory = false) {
   const meta = getEntryMeta(id);
   activeMeta = meta;
+  keys.clear();
   let inst = entryCache.get(meta.id);
   if (!inst) {
     const mod = await import(meta.module);
-    inst = mod.createEntry(gl);
+    inst = mod.createEntry(gl, { requestHudRefresh: renderHud });
     entryCache.set(meta.id, inst);
   }
   activeEntry = inst;
@@ -168,8 +174,8 @@ async function loadEntry(id, pushHistory = false) {
   paused = false;
 
   if (pushHistory && location.protocol.startsWith("http")) {
-    const base = location.pathname.replace(/\/(astar|attack-tokens|rubber-banding)\/?$/, "/").replace(/\/index\.html$/, "/");
-    const targetUrl = `${base}${meta.id}/${location.search}`;
+    const rootPath = new URL(SITE_ROOT).pathname;
+    const targetUrl = `${rootPath}${meta.id}/${location.search}`;
     try { history.replaceState(null, "", targetUrl); } catch {}
   }
 
@@ -177,7 +183,6 @@ async function loadEntry(id, pushHistory = false) {
   renderHud();
 }
 
-// Modal controls
 function openCatalog() {
   renderCatalogModal();
   $("catalogModal").hidden = false;
@@ -207,12 +212,26 @@ $("resetBtn").addEventListener("click", () => {
   }
 });
 
-// Pointer orbit, scroll zoom, and click-to-edit-tile raypicking!
+// Prevent context menu on canvas so Right-Click can cleanly parry/block or orbit!
+canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
 let dragActive = false;
 let dragMoved = false;
 let downX = 0, downY = 0, lastX = 0, lastY = 0;
 
 canvas.addEventListener("pointerdown", (e) => {
+  const world = projectClientToWorldY0(e.clientX, e.clientY);
+  pointer.x = e.clientX;
+  pointer.y = e.clientY;
+  pointer.world = world;
+  pointer.down = true;
+  pointer.button = e.button;
+
+  // Let entry claim right-click (e.g. shield block in Attack Tokens) or direct gameplay actions
+  if (activeEntry?.onPointerDown && activeEntry.onPointerDown({ world, button: e.button, shiftKey: e.shiftKey })) {
+    return;
+  }
+
   dragActive = true;
   dragMoved = false;
   downX = lastX = e.clientX;
@@ -222,12 +241,17 @@ canvas.addEventListener("pointerdown", (e) => {
 });
 
 canvas.addEventListener("pointermove", (e) => {
+  pointer.x = e.clientX;
+  pointer.y = e.clientY;
+  pointer.world = projectClientToWorldY0(e.clientX, e.clientY);
+  if (activeEntry?.onPointerMove) activeEntry.onPointerMove({ world: pointer.world, down: pointer.down });
+
   if (!dragActive) return;
   const dx = e.clientX - lastX;
   const dy = e.clientY - lastY;
   lastX = e.clientX;
   lastY = e.clientY;
-  if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) dragMoved = true;
+  if (Math.hypot(e.clientX - downX, e.clientY - downY) > 7) dragMoved = true;
   if (dragMoved) {
     cam.yaw -= dx * 0.0065;
     cam.pitch = clamp(cam.pitch + dy * 0.0055, 0.36, 1.38);
@@ -235,16 +259,18 @@ canvas.addEventListener("pointermove", (e) => {
 });
 
 canvas.addEventListener("pointerup", (e) => {
+  pointer.down = false;
+  if (activeEntry?.onPointerUp) activeEntry.onPointerUp({ button: e.button });
+
   if (!dragActive) return;
   dragActive = false;
   canvas.classList.remove("dragging");
-  if (!dragMoved && activeEntry && typeof activeEntry.onClickTile === "function") {
-    const rect = canvas.getBoundingClientRect();
-    const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const ndcY = 1 - ((e.clientY - rect.top) / rect.height) * 2;
-    const basis = cameraBasisFromOrbit(cam.yaw, cam.pitch, cam.dist, cam.targetX, cam.targetY, cam.targetZ);
-    const pt = screenRayToPlaneY(ndcX, ndcY, basis, (cam.fovDeg * Math.PI) / 180, rect.width / Math.max(1, rect.height), 0);
-    if (pt) activeEntry.onClickTile(pt, e.shiftKey);
+  if (!dragMoved && activeEntry) {
+    const world = projectClientToWorldY0(e.clientX, e.clientY);
+    if (world && typeof activeEntry.onClickWorld === "function") {
+      activeEntry.onClickWorld(world, { shiftKey: e.shiftKey, altKey: e.altKey, button: e.button });
+      renderHud();
+    }
   }
 });
 
@@ -253,10 +279,29 @@ canvas.addEventListener("wheel", (e) => {
   cam.dist = clamp(cam.dist * (1 + Math.sign(e.deltaY) * 0.08), 11.0, 38.0);
 }, { passive: false });
 
+const GAME_KEYS = new Set([
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  "KeyW", "KeyA", "KeyS", "KeyD",
+  "Space", "ShiftLeft", "ShiftRight",
+  "KeyE", "KeyJ", "KeyK", "KeyX", "Enter",
+]);
+
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("catalogModal").hidden) { closeCatalog(); return; }
-  if (e.key === " ") { e.preventDefault(); paused = !paused; renderHud(); }
-  if (e.key === "r" || e.key === "R") {
+  if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+
+  if (GAME_KEYS.has(e.code)) {
+    e.preventDefault();
+    keys.add(e.code);
+    if (activeEntry?.onKeyDown) {
+      activeEntry.onKeyDown(e.code, e.repeat);
+      renderHud();
+    }
+    return;
+  }
+
+  if (e.code === "KeyP") { paused = !paused; renderHud(); }
+  if (e.code === "KeyR") {
     if (activeEntry) { activeEntry.reset(); applyEntryCam(activeEntry.defaultCam); renderHud(); }
   }
   if (e.key === "1") loadEntry(CODEX_ENTRIES[0].id, true);
@@ -264,21 +309,35 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "3") loadEntry(CODEX_ENTRIES[2].id, true);
 });
 
-// Expose tiny debug/thumb capture hook for automated QA & OG card generation
+window.addEventListener("keyup", (e) => {
+  if (keys.has(e.code)) {
+    keys.delete(e.code);
+    if (activeEntry?.onKeyUp) activeEntry.onKeyUp(e.code);
+  }
+});
+
+window.addEventListener("blur", () => {
+  keys.clear();
+  pointer.down = false;
+});
+
+// Expose debug/capture hook for automated QA & OG card generation
 window.__GDC__ = {
   loadEntry,
   setPaused(v) { paused = !!v; },
-  step(dt) { if (activeEntry) activeEntry.update(dt); },
+  step(dt) { if (activeEntry) activeEntry.update(dt, keys, pointer); },
   action(id) { if (activeEntry) { activeEntry.onAction(id); renderHud(); } },
+  pressKey(code) { keys.add(code); activeEntry?.onKeyDown?.(code, false); renderHud(); },
+  releaseKey(code) { keys.delete(code); activeEntry?.onKeyUp?.(code); },
+  getState() { return activeEntry?.getDebugState?.() || null; },
   renderNow() {
     if (activeEntry) {
       ovCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      activeEntry.render(canvas.width, canvas.height, cam, ovCtx, cssW, cssH);
+      activeEntry.render(canvas.width, canvas.height, cam, ovCtx, cssW, cssH, lang);
     }
   },
 };
 
-// Initial entry selection: URL param ?entry= -> <html data-entry=""> -> default rubber-banding
 const initialId = params.get("entry") || document.documentElement.dataset.entry || "rubber-banding";
 loadEntry(initialId, false).then(() => {
   let prev = performance.now();
@@ -286,13 +345,13 @@ loadEntry(initialId, false).then(() => {
     const dt = Math.min(0.05, Math.max(0.001, (now - prev) / 1000));
     prev = now;
     if (activeEntry) {
-      if (!paused) activeEntry.update(dt);
+      if (!paused) activeEntry.update(dt, keys, pointer);
       if (overlay.width !== canvas.width || overlay.height !== canvas.height) {
         overlay.width = canvas.width;
         overlay.height = canvas.height;
       }
       ovCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      activeEntry.render(canvas.width, canvas.height, cam, ovCtx, cssW, cssH);
+      activeEntry.render(canvas.width, canvas.height, cam, ovCtx, cssW, cssH, lang);
     }
     requestAnimationFrame(cleanFrame);
   }

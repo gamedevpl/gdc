@@ -1,5 +1,4 @@
-// Game Design Codex (GDC) catalog — interactive 3D game-design mechanics from gamedev.pl.
-// Every entry pairs a live WebGL2 miniature diorama with its short explainer video.
+// Game Design Codex (GDC) catalog — playable 3D game-design mini-games from gamedev.pl.
 
 export const CODEX_ENTRIES = [
   {
@@ -13,20 +12,20 @@ export const CODEX_ENTRIES = [
       pl: "Rubber Banding (Gumka)",
     },
     kicker: {
-      en: "RACING AI · CODEX #03",
-      pl: "AI WYŚCIGOWE · KODEKS #03",
+      en: "RACING AI · PLAYABLE MINI-GAME #03",
+      pl: "AI WYŚCIGOWE · GRYWALNA MINI-GRA #03",
     },
     question: {
-      en: "Why racing games secretly adjust AI speed to keep races close.",
-      pl: "Dlaczego gry wyścigowe po cichu zmieniają tempo AI, żeby wyścig był ciasny.",
+      en: "Drive the green car yourself and feel AI speed stretch like a rubber band.",
+      pl: "Poprowadź zielone auto sam i poczuj, jak gumka rozciąga tempo AI.",
     },
     note: {
-      en: "An invisible elastic tether links rivals to your car. Pull far ahead and the band slingshots AI faster; spin out and it slows leaders down so you still get a photo finish.",
-      pl: "Niewidzialna gumka łączy rywali z Twoim autem. Gdy uciekniesz — przyspiesza AI; gdy się rozbijesz — hamuje liderów, żebyś wrócił do walki na ostatnim okrążeniu.",
+      en: "Drive with WASD / Arrows and Space for Nitro. Pull far ahead and rivals boost onto your bumper; crash into a wall and leaders quietly brake — toggle Rubber Band OFF to feel the gap explode.",
+      pl: "Jedź WASD / Strzałkami, Spacja = Nitro. Gdy uciekniesz, rywale dostają dopalacz; gdy wjedziesz w bandę, liderzy hamują — wyłącz Gumkę, żeby poczuć różnicę.",
     },
     hint: {
-      en: "Try Crash Player! or Boost Player! with Rubber Band ON vs OFF · Drag to orbit · Scroll to zoom",
-      pl: "Kliknij Rozbij gracza! lub Turbo z Gumką WŁ vs WYŁ · Przeciągnij, aby obrócić · Scroll = zoom",
+      en: "WASD / Arrows = Drive · Space = Nitro · X = Spinout · Click track to steer · Drag to orbit",
+      pl: "WASD / Strzałki = Jazda · Spacja = Nitro · X = Poślizg · Kliknij tor = skręt · Przeciągnij = kamera",
     },
   },
   {
@@ -40,20 +39,20 @@ export const CODEX_ENTRIES = [
       pl: "Tokeny Ataku (Attack Tokens)",
     },
     kicker: {
-      en: "COMBAT AI · CODEX #02",
-      pl: "AI WALKI · KODEKS #02",
+      en: "COMBAT AI · PLAYABLE MINI-GAME #02",
+      pl: "AI WALKI · GRYWALNA MINI-GRA #02",
     },
     question: {
-      en: "Why five enemies surround you, yet politely attack one at a time.",
-      pl: "Dlaczego pięciu wrogów otacza Cię w kółku, ale atakuje po kolei.",
+      en: "Fight 5 skeletons yourself: winnable with 1 token, brutal chaos with tokens OFF.",
+      pl: "Walcz sam z 5 szkieletami: uczciwy pojedynek z 1 tokenem vs masakra bez tokenów.",
     },
     note: {
-      en: "Without attack tokens, every guard swings at once and you lose in one second. With one golden ticket, only the holder strikes while the rest circle and wait their turn.",
-      pl: "Bez tokenów ataku wszyscy strażnicy uderzają naraz i giniesz w sekundę. Z jednym złotym biletem atakuje tylko jego posiadacz, a reszta krąży i czeka na swoją kolej.",
+      en: "Move your Knight with WASD, Left-Click (or J) to slash, hold Space (or Right-Click) to block & parry. Survive easily with 1 Token, then switch Tokens OFF to feel 5 enemies dogpile at once.",
+      pl: "Chodź Rycerzem (WASD / Strzałki), LPM lub J = cięcie mieczem, Spacja lub PPM = blok tarczą i parowanie. Z 1 tokenem dasz radę — wyłącz tokeny i zobacz, jak rzucają się naraz.",
     },
     hint: {
-      en: "Switch between Tokens OFF (dogpile), 1 Token (fair) and 2 Tokens (hard) · Drag to orbit",
-      pl: "Przełączaj Bez tokenów (chaos), 1 Token (fair) i 2 Tokeny (hard) · Przeciągnij, aby obrócić",
+      en: "WASD / Arrows = Move · Left-Click / J = Slash · Space / Right-Click = Block & Parry · Drag = Orbit",
+      pl: "WASD / Strzałki = Ruch · LPM / J = Cięcie · Spacja / PPM = Blok i parowanie · Przeciągnij = kamera",
     },
   },
   {
@@ -67,20 +66,20 @@ export const CODEX_ENTRIES = [
       pl: "A* — Szukanie drogi",
     },
     kicker: {
-      en: "PATHFINDING · CODEX #01",
-      pl: "PATHFINDING · KODEKS #01",
+      en: "PATHFINDING · PLAYABLE MINI-GAME #01",
+      pl: "PATHFINDING · GRYWALNA MINI-GRA #01",
     },
     question: {
-      en: "How a game character finds the shortest way out of any maze.",
-      pl: "Jak postać w grze znajduje najkrótszą drogę przez każdy labirynt.",
+      en: "Walk the maze yourself, paint walls live, or race the distance numbers to 0.",
+      pl: "Przejdź labirynt sam, rysuj ściany na żywo albo ścigaj się z liczbami do 0.",
     },
     note: {
-      en: "Count outward from the goal (0, 1, 2, 3...) until the wave reaches your hero. Then simply walk to a smaller number on every step — guaranteed shortest path.",
-      pl: "Policz kroki od mety na zewnątrz (0, 1, 2, 3...), aż fala dotrze do bohatera. Potem idź zawsze na mniejszą liczbę — gwarantowana najkrótsza droga.",
+      en: "Use WASD / Arrows to walk the hero yourself while numbers count steps to Goal (0) live, click any tile to add/remove stone walls, Shift+Click to move Goal, or hit Auto-Solve.",
+      pl: "Chodź bohaterem (WASD / Strzałki) — liczby na żywo liczą kroki do Mety (0). Kliknij kafelek, żeby postawić lub usunąć ścianę, Shift+Klik przenosi Metę, albo włącz Auto-Solve.",
     },
     hint: {
-      en: "Click any maze tile to toggle walls · Shift+Click to move Goal · Drag to orbit",
-      pl: "Kliknij kafelek, aby postawić/usunąć ścianę · Shift+Klik przenosi Metę · Przeciągnij, aby obrócić",
+      en: "WASD / Arrows = Walk · Click tile = Wall · Shift+Click = Move Goal · Space = Auto-Solve · Drag = Orbit",
+      pl: "WASD / Strzałki = Chodzenie · Klik = Ściana · Shift+Klik = Meta · Spacja = Auto-Solve · Przeciągnij = kamera",
     },
   },
 ];
