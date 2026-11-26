@@ -778,14 +778,35 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       }
     }
 
-    // 2) Top-Right Live Stealth Detection Math Telemetry HUD (hidden in clean ?hud=0 thumbnails!)
+    // 2) Top-Right Live Stealth Detection Math Telemetry HUD (compact 1-line pill on mobile, full card on desktop!)
     if (!document.body.classList.contains("no-hud")) {
-    const pad = 14;
-    const hdrBottom = document.querySelector("header")?.getBoundingClientRect().bottom || 62;
-    const panelW = Math.min(288, cssW - 28);
-    const panelH = 144;
-    const px = cssW - panelW - pad;
-    const py = Math.max(74, Math.round(hdrBottom) + 10);
+      const hdrBottom = document.querySelector("header")?.getBoundingClientRect().bottom || 52;
+      const py = Math.max(54, Math.round(hdrBottom) + 6);
+      if (cssW < 640) {
+        const pillText = realisticMode
+          ? (isPl ? `REAL 140° · 0 ms · Relikty ${collected}/${relics.length}` : `REAL 140° · 0 ms · Relics ${collected}/${relics.length}`)
+          : (isPl ? `SKRADANIE 65° · ? ${Math.round(maxSusp * 100)}% · Relikty ${collected}/${relics.length}` : `STEALTH 65° · ? ${Math.round(maxSusp * 100)}% · Relics ${collected}/${relics.length}`);
+        ctx.save();
+        ctx.font = "800 10.5px ui-monospace, SFMono-Regular, Menlo, monospace";
+        const tw = Math.min(cssW - 20, ctx.measureText(pillText).width + 20);
+        const px = (cssW - tw) * 0.5;
+        ctx.fillStyle = "rgba(10, 12, 26, 0.84)";
+        ctx.strokeStyle = realisticMode ? "rgba(239, 68, 68, 0.72)" : "rgba(139, 92, 246, 0.68)";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.roundRect(px, py, tw, 24, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = realisticMode ? "#fca5a5" : "#c4b5fd";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(pillText, cssW * 0.5, py + 12.5);
+        ctx.restore();
+      } else {
+      const pad = 14;
+      const panelW = Math.min(288, cssW - 28);
+      const panelH = 144;
+      const px = cssW - panelW - pad;
 
     ctx.save();
     ctx.fillStyle = "rgba(10, 12, 26, 0.84)";
@@ -868,6 +889,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       px + 12, py + 130
     );
     ctx.restore();
+      }
     }
 
     // 3) Center Top Action Banner

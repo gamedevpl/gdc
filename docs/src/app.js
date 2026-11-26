@@ -1,8 +1,8 @@
 // Game Design Codex (GDC) shared application shell — sibling to FX Lab.
 // Fullscreen WebGL2 + 2D HUD, procedural Web Audio SFX/Music toggles, live keyboard/mouse gameplay, Follow-Cam & Shake!
-import { CODEX_CATEGORIES, CODEX_ENTRIES, getEntryMeta } from "./catalog.js?v=10";
+import { CODEX_CATEGORIES, CODEX_ENTRIES, getEntryMeta } from "./catalog.js?v=11";
 import { clamp, cameraBasisFromOrbit, screenRayToPlaneY } from "./gl-utils.js";
-import { createAudioEngine } from "./audio.js?v=10";
+import { createAudioEngine } from "./audio.js?v=11";
 import { initSiteMenu } from "./site-menu.js";
 
 const $ = (id) => document.getElementById(id);
@@ -65,11 +65,55 @@ window.addEventListener("resize", resize);
 resize();
 
 function applyEntryCam(base) {
-  const portraitBoost = cssH > cssW ? 1.36 : 1.0;
+  const isPortrait = cssH > cssW;
+  const aspect = cssW / Math.max(1, cssH);
+  const portraitBoost = isPortrait ? clamp(1.16 / Math.max(0.42, aspect), 1.52, 2.28) : 1.0;
   defaultCam = { ...base, dist: base.dist * portraitBoost };
   Object.assign(cam, defaultCam);
   Object.assign(renderCam, cam);
 }
+
+let cardCollapsed = window.matchMedia("(max-width: 780px)").matches;
+function ensureCardCollapseUi() {
+  const card = document.querySelector(".card");
+  if (!card || $("cardToggle")) return;
+  const kicker = $("kicker");
+  const title = $("entryTitle");
+  const head = document.createElement("div");
+  head.className = "card-head-row";
+  const textWrap = document.createElement("div");
+  textWrap.className = "card-head-text";
+  const btn = document.createElement("button");
+  btn.id = "cardToggle";
+  btn.type = "button";
+  btn.className = "card-toggle";
+  btn.addEventListener("click", () => {
+    cardCollapsed = !cardCollapsed;
+    syncCardCollapse();
+  });
+  title.addEventListener("click", () => {
+    if (window.matchMedia("(max-width: 780px)").matches) {
+      cardCollapsed = !cardCollapsed;
+      syncCardCollapse();
+    }
+  });
+  card.insertBefore(head, kicker);
+  textWrap.append(kicker, title);
+  head.append(textWrap, btn);
+  syncCardCollapse();
+}
+
+function syncCardCollapse() {
+  const card = document.querySelector(".card");
+  const btn = $("cardToggle");
+  if (!card || !btn) return;
+  card.classList.toggle("is-collapsed", cardCollapsed);
+  btn.setAttribute("aria-expanded", String(!cardCollapsed));
+  btn.textContent = cardCollapsed
+    ? (lang === "pl" ? "Opis ▴" : "Info ▴")
+    : (lang === "pl" ? "Ukryj ▾" : "Hide ▾");
+}
+ensureCardCollapseUi();
 
 function projectClientToWorldY0(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
@@ -275,6 +319,7 @@ function renderHud() {
   }
 
   updateAudioButtons();
+  syncCardCollapse();
   renderSiteMenu();
   renderRibbon();
   if (!$("catalogModal").hidden) renderCatalogModal();

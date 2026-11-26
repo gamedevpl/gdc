@@ -447,14 +447,35 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     }
     ctx.restore();
 
-    // Top-Right Telemetry HUD (hidden in clean ?hud=0 thumbnails!)
+    // Top-Right Telemetry HUD (compact 1-line pill on mobile, full card on desktop, hidden in ?hud=0!)
     if (!document.body.classList.contains("no-hud")) {
+      const hdrBottom = document.querySelector("header")?.getBoundingClientRect().bottom || 52;
+      const py = Math.max(54, Math.round(hdrBottom) + 6);
+      if (cssW < 640) {
+        const pillText = flowMode
+          ? (isPl ? `FLOW 1× (${lastBfsOps} op) · Utknięte: ${stuckCount} · Cel: ${arrivals}` : `FLOW 1× (${lastBfsOps} ops) · Stuck: ${stuckCount} · Goal: ${arrivals}`)
+          : (isPl ? `NAIWNY · Utknięte: ${stuckCount}/96${stuckCount > 15 ? " (ZATOR!)" : ""}` : `NAIVE · Stuck: ${stuckCount}/96${stuckCount > 15 ? " (JAM!)" : ""}`);
+        ctx.save();
+        ctx.font = "800 10.5px ui-monospace, SFMono-Regular, Menlo, monospace";
+        const tw = Math.min(cssW - 20, ctx.measureText(pillText).width + 20);
+        const px = (cssW - tw) * 0.5;
+        ctx.fillStyle = "rgba(10, 22, 24, 0.84)";
+        ctx.strokeStyle = flowMode ? "rgba(34, 197, 94, 0.72)" : "rgba(239, 68, 68, 0.78)";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.roundRect(px, py, tw, 24, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = flowMode ? "#4ade80" : "#fca5a5";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(pillText, cssW * 0.5, py + 12.5);
+        ctx.restore();
+      } else {
       const pad = 14;
-      const hdrBottom = document.querySelector("header")?.getBoundingClientRect().bottom || 62;
       const panelW = Math.min(300, cssW - 28);
       const panelH = 152;
       const px = cssW - panelW - pad;
-      const py = Math.max(74, Math.round(hdrBottom) + 10);
 
       ctx.save();
       ctx.fillStyle = "rgba(10, 22, 24, 0.86)";
@@ -537,6 +558,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         px + 12, py + 131
       );
       ctx.restore();
+      }
     }
 
     // Center Top Action Banner
