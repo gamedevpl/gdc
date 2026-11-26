@@ -2,6 +2,33 @@
 
 export const CODEX_ENTRIES = [
   {
+    id: "camera-deadzone",
+    accent: "#eab308",
+    category: "Camera Feel",
+    thumb: "thumbs/camera-deadzone.jpg",
+    module: "./entries/camera-deadzone/index.js",
+    title: {
+      en: "Camera Deadzone & Look-Ahead",
+      pl: "Deadzone i Look-Ahead Kamery",
+    },
+    kicker: {
+      en: "CAMERA FEEL · PLAYABLE MINI-GAME #07",
+      pl: "PRACA KAMERY · GRYWALNA MINI-GRA #07",
+    },
+    question: {
+      en: "Sprint past spinning temple traps and feel why game cameras use Deadzone boxes & Look-Ahead.",
+      pl: "Przebiegnij tor z wirującymi piłami i poczuj, czemu kamery używają strefy Deadzone i Look-Ahead.",
+    },
+    note: {
+      en: "Run with A/D, Jump with Space, and Dash with Shift across the canyon temple gauntlet. Compare Smart Cam (Deadzone box + Look-Ahead tether) vs Rigid Locked (0 deadzone — press Wiggle Test V to feel the jitter!).",
+      pl: "Biegnij (A/D), skacz (Spacja) i rób Dash (Shift) przez pustynną świątynię. Porównaj Smart Cam (pudełko Deadzone + wyprzedzanie Look-Ahead) ze Sztywną Kamerą (kliknij Test Wiggle V, żeby poczuć drgania!).",
+    },
+    hint: {
+      en: "A/D = Run · Space / Click = Jump · Shift = Sand Dash · T = Smart/Rigid · L = Look-Ahead · X = Overlay · V = Wiggle",
+      pl: "A/D = Bieg · Spacja / LPM = Skok · Shift = Dash · T = Smart/Sztywna · L = Look-Ahead · X = Siatka · V = Wiggle",
+    },
+  },
+  {
     id: "fake-1hp",
     accent: "#ec4899",
     category: "Player Survival",

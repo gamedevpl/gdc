@@ -121,6 +121,12 @@ export function createAudioEngine() {
       lead: [440.0, 0, 523.25, 659.25, 587.33, 0, 523.25, 440.0, 659.25, 0, 783.99, 659.25, 587.33, 523.25, 440.0, 0],
       wave: "square",
     },
+    "camera-deadzone": {
+      tempoMs: 145,
+      bass: [146.83, 0, 146.83, 155.56, 146.83, 0, 130.81, 0, 146.83, 0, 185.0, 196.0, 185.0, 155.56, 146.83, 0],
+      lead: [587.33, 622.25, 739.99, 783.99, 739.99, 622.25, 587.33, 0, 880.0, 783.99, 739.99, 622.25, 587.33, 0, 440.0, 0],
+      wave: "triangle",
+    },
   };
 
   function playMusicTone(freq, dur, vol, type = "triangle", detune = 0) {
@@ -401,6 +407,13 @@ export function createAudioEngine() {
       if (!ensureContext()) return;
       playTone(440, 880, 0.22, 0.20, "triangle");
       setTimeout(() => playTone(880, 1320, 0.26, 0.18, "sine"), 50);
+    },
+
+    // Desert Canyon Dash SFX
+    sandDash() {
+      if (!ensureContext()) return;
+      playNoise(0.18, 1400, 1.4, 0.14, "bandpass");
+      playTone(320, 640, 0.14, 0.12, "triangle");
     },
   };
 }
