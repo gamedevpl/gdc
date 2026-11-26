@@ -27,11 +27,13 @@
 
   <header>
     <div class="brand">
-      <div class="brand-links">
-        <a href="https://gamedev.pl" target="_blank" rel="noopener">← gamedev.pl</a>
-        <span class="sep">·</span>
-        <a href="https://gamedevpl.github.io/fx-lab/" target="_blank" rel="noopener">FX Lab</a>
-      </div>
+      <button id="menuBtn" class="menu-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="siteMenu" aria-label="Menu">
+        <svg viewBox="0 0 14 14" shape-rendering="crispEdges" aria-hidden="true">
+          <rect x="1" y="2" width="12" height="2" fill="currentColor"/>
+          <rect x="1" y="6" width="12" height="2" fill="currentColor"/>
+          <rect x="1" y="10" width="12" height="2" fill="currentColor"/>
+        </svg>
+      </button>
       <h1>GAME DESIGN <em>CODEX</em></h1>
     </div>
     <div class="gdc-ribbon" id="codexRibbon" role="navigation" aria-label="Codex entries"></div>

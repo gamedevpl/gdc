@@ -76,6 +76,85 @@ function projectClientToWorldY0(clientX, clientY) {
   return screenRayToPlaneY(ndcX, ndcY, basis, (renderCam.fovDeg * Math.PI) / 180, rect.width / Math.max(1, rect.height), 0);
 }
 
+const SVG_MENU_OPEN = `<svg viewBox="0 0 14 14" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="2" width="12" height="2" fill="currentColor"/><rect x="1" y="6" width="12" height="2" fill="currentColor"/><rect x="1" y="10" width="12" height="2" fill="currentColor"/></svg>`;
+const SVG_MENU_CLOSE = `<svg viewBox="0 0 14 14" shape-rendering="crispEdges" aria-hidden="true"><rect x="2" y="2" width="2" height="2" fill="currentColor"/><rect x="4" y="4" width="2" height="2" fill="currentColor"/><rect x="6" y="6" width="2" height="2" fill="currentColor"/><rect x="8" y="8" width="2" height="2" fill="currentColor"/><rect x="10" y="10" width="2" height="2" fill="currentColor"/><rect x="10" y="2" width="2" height="2" fill="currentColor"/><rect x="8" y="4" width="2" height="2" fill="currentColor"/><rect x="4" y="8" width="2" height="2" fill="currentColor"/><rect x="2" y="10" width="2" height="2" fill="currentColor"/></svg>`;
+let menuOpen = false;
+
+function ensureSiteMenu() {
+  const brand = document.querySelector("header .brand");
+  const btn = $("menuBtn");
+  if (!brand || !btn) return null;
+  let menu = $("siteMenu");
+  if (!menu) {
+    menu = document.createElement("div");
+    menu.id = "siteMenu";
+    menu.className = "site-menu";
+    menu.setAttribute("role", "menu");
+    menu.hidden = true;
+    brand.appendChild(menu);
+
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      audio.unlock();
+      setMenuOpen(!menuOpen);
+    });
+    document.addEventListener("pointerdown", (e) => {
+      if (menuOpen && !brand.contains(e.target)) setMenuOpen(false);
+    });
+  }
+  return menu;
+}
+
+function renderSiteMenu() {
+  const menu = ensureSiteMenu();
+  const btn = $("menuBtn");
+  if (!menu || !btn) return;
+  const pl = lang === "pl";
+  const srcHref = activeMeta
+    ? `https://github.com/gamedevpl/gdc/tree/main/docs/src/entries/${activeMeta.id}`
+    : "https://github.com/gamedevpl/gdc";
+  btn.setAttribute("aria-label", menuOpen ? (pl ? "Zamknij menu" : "Close menu") : (pl ? "Menu nawigacji" : "Navigation menu"));
+  btn.setAttribute("aria-expanded", String(menuOpen));
+  btn.innerHTML = menuOpen ? SVG_MENU_CLOSE : SVG_MENU_OPEN;
+  menu.innerHTML = `
+    <div class="site-menu-label">gamedev.pl</div>
+    <a class="site-menu-item" role="menuitem" href="https://gamedev.pl" target="_blank" rel="noopener">
+      <span class="site-menu-text"><strong>gamedev.pl</strong><small>${pl ? "Gry przeglądarkowe i projekty" : "Browser games & projects"}</small></span>
+      <span class="site-menu-ext" aria-hidden="true">↗</span>
+    </a>
+    <a class="site-menu-item" role="menuitem" href="https://gamedevpl.github.io/fx-lab/" target="_blank" rel="noopener">
+      <span class="site-menu-text"><strong>FX Lab</strong><small>${pl ? "29 efektów WebGL2 i WebGPU" : "29 WebGL2 & WebGPU effects"}</small></span>
+      <span class="site-menu-ext" aria-hidden="true">↗</span>
+    </a>
+    <a class="site-menu-item" role="menuitem" aria-current="page" href="#top" data-menu-close="1">
+      <span class="site-menu-text"><strong>Game Design Codex</strong><small>${pl ? "Grywalne mechaniki gier 3D" : "Playable 3D game mechanics"}</small></span>
+      <span class="site-menu-badge">${pl ? "TUTAJ" : "LIVE"}</span>
+    </a>
+    <div class="site-menu-sep" role="separator"></div>
+    <a class="site-menu-item" role="menuitem" href="https://www.youtube.com/@gamedev_pl" target="_blank" rel="noopener">
+      <span class="site-menu-text"><strong>YouTube (@gamedev_pl)</strong><small>${pl ? "Filmy i wyjaśnienia mechanik" : "Visual gamedev explainers"}</small></span>
+      <span class="site-menu-ext" aria-hidden="true">↗</span>
+    </a>
+    <a class="site-menu-item" role="menuitem" href="${srcHref}" target="_blank" rel="noopener">
+      <span class="site-menu-text"><strong>${pl ? "Kod na GitHubie" : "Source on GitHub"}</strong><small>gamedevpl/gdc</small></span>
+      <span class="site-menu-ext" aria-hidden="true">↗</span>
+    </a>
+  `;
+  menu.querySelectorAll('[data-menu-close="1"]').forEach((el) => {
+    el.addEventListener("click", (e) => { e.preventDefault(); setMenuOpen(false); });
+  });
+}
+
+function setMenuOpen(open, restoreFocus = false) {
+  menuOpen = !!open;
+  const menu = ensureSiteMenu();
+  if (!menu) return;
+  if (menuOpen && !$("catalogModal").hidden) closeCatalog();
+  menu.hidden = !menuOpen;
+  renderSiteMenu();
+  if (!menuOpen && restoreFocus) $("menuBtn")?.focus();
+}
+
 // Inject crisp SFX + Music toggle buttons into header nav cleanly across all 4 HTML routes!
 function ensureAudioButtons() {
   const nav = document.querySelector("header nav");
@@ -191,6 +270,7 @@ function renderHud() {
   }
 
   updateAudioButtons();
+  renderSiteMenu();
   renderRibbon();
   if (!$("catalogModal").hidden) renderCatalogModal();
 }
@@ -221,6 +301,7 @@ async function loadEntry(id, pushHistory = false) {
 }
 
 function openCatalog() {
+  if (menuOpen) setMenuOpen(false);
   renderCatalogModal();
   $("catalogModal").hidden = false;
   $("catalogBtn").setAttribute("aria-expanded", "true");
@@ -337,6 +418,7 @@ const GAME_KEYS = new Set([
 ]);
 
 window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && menuOpen) { setMenuOpen(false, true); return; }
   if (e.key === "Escape" && !$("catalogModal").hidden) { closeCatalog(); return; }
   if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
 
