@@ -133,6 +133,12 @@ export function createAudioEngine() {
       lead: [440.0, 0, 0, 523.25, 493.88, 0, 440.0, 0, 392.0, 0, 440.0, 523.25, 587.33, 0, 493.88, 0],
       wave: "sine",
     },
+    "boids-flocking": {
+      tempoMs: 175,
+      bass: [130.81, 0, 196.0, 0, 146.83, 0, 220.0, 0, 164.81, 0, 246.94, 0, 146.83, 0, 196.0, 0],
+      lead: [523.25, 659.25, 783.99, 0, 880.0, 783.99, 659.25, 0, 587.33, 659.25, 783.99, 987.77, 783.99, 659.25, 523.25, 0],
+      wave: "sine",
+    },
   };
 
   function playMusicTone(freq, dur, vol, type = "triangle", detune = 0) {
@@ -439,6 +445,17 @@ export function createAudioEngine() {
       playTone(880, 1180, 0.12, 0.24, "sawtooth");
       setTimeout(() => playTone(660, 440, 0.24, 0.22, "sawtooth"), 90);
       playNoise(0.12, 1800, 2.5, 0.14, "bandpass");
+    },
+
+    // Reef Lagoon / Boids SFX
+    waterRipple() {
+      if (!ensureContext()) return;
+      playTone(460, 740, 0.14, 0.11, "sine");
+      playNoise(0.11, 900, 1.8, 0.06, "bandpass");
+    },
+    ruleSwitch(on = true) {
+      if (!ensureContext()) return;
+      playTone(on ? 420 : 520, on ? 680 : 300, 0.10, 0.12, "triangle");
     },
   };
 }

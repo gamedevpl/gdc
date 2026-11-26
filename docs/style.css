@@ -127,6 +127,22 @@ h2{margin:0 0 6px;font:bold clamp(21px,2.3vw,29px)/1.08 var(--sans);letter-spaci
 .catalog-head h2{margin:0;font:700 22px/1.1 var(--pix);color:#fff3dc}
 .catalog-head p{margin:5px 0 0;font:700 12px var(--pix);color:var(--muted)}
 .catalog-close{font:700 20px/1 var(--pix);min-width:36px;padding:4px 10px}
+.catalog-filters{
+  flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:11px 20px;border-bottom:2px solid #2b263d;background:#181526;
+}
+.catalog-filters input{
+  flex:1 1 200px;min-width:0;padding:7px 11px;font:600 14px var(--sans);
+  color:#fff3dc;background:var(--ink);border:2px solid #413a5a;
+}
+.catalog-filters input:focus{outline:2px solid var(--turquoise);outline-offset:1px}
+.catalog-cats{display:flex;flex-wrap:wrap;gap:6px}
+.catalog-cats button{font-size:12px;min-height:28px;padding:4px 9px}
+.catalog-cats button[aria-pressed="true"]{background:var(--amber);color:var(--ink)}
+.catalog-empty{
+  grid-column:1/-1;padding:28px 16px;text-align:center;
+  font:700 14px var(--pix);color:var(--muted);
+}
 .catalog-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px 20px 22px}
 .catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
 .gdc-card{

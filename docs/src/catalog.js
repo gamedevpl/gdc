@@ -1,10 +1,44 @@
 // Game Design Codex (GDC) catalog — playable 3D game-design mini-games from gamedev.pl.
 
+export const CODEX_CATEGORIES = [
+  { id: "all", en: "All", pl: "Wszystkie" },
+  { id: "feel", en: "Game Feel & Camera", pl: "Game Feel i Kamera" },
+  { id: "ai", en: "Enemy & Race AI", pl: "AI Przeciwników" },
+  { id: "crowds", en: "Pathfinding & Crowds", pl: "Nawigacja i Roje" },
+];
+
 export const CODEX_ENTRIES = [
+  {
+    id: "boids-flocking",
+    accent: "#06b6d4",
+    category: "crowds",
+    thumb: "thumbs/boids-flocking.jpg",
+    module: "./entries/boids-flocking/index.js",
+    title: {
+      en: "Boids & Flocking (3 Rules)",
+      pl: "Boids i Rój (3 Reguły)",
+    },
+    kicker: {
+      en: "CROWD AI · PLAYABLE MINI-GAME #09",
+      pl: "AI ROJU · GRYWALNA MINI-GRA #09",
+    },
+    question: {
+      en: "How 72 fish swim as one synchronized school with zero leader — just Separation, Alignment & Cohesion.",
+      pl: "Jak 72 ryby płyną jak jedna zgrana ławica bez żadnego lidera — tylko Separacja, Zgodność i Spójność.",
+    },
+    note: {
+      en: "Click the reef or drive with WASD to steer the Predator Shark through 72 live 3D boids! Toggle Separation [T], Alignment [L], and Cohesion [K] individually and watch the Gold Inspector Boid's live force vectors — turn Separation OFF to see the school collapse into a clump.",
+      pl: "Kliknij rafę lub steruj WASD Rekinem wśród 72 boidów 3D! Wyłączaj osobno Separację [T], Zgodność [L] i Spójność [K] i obserwuj wektory sił na Złotej Rybie — wyłącz Separację, a ławica zbije się w jeden kłąb.",
+    },
+    hint: {
+      en: "WASD / Click = Steer Shark · T = Separation · L = Alignment · K = Cohesion · F = Shark Auto · V = Preset · X = Vectors",
+      pl: "WASD / Klik = Steruj Rekinem · T = Separacja · L = Zgodność · K = Spójność · F = Rekin Auto · V = Preset · X = Wektory",
+    },
+  },
   {
     id: "stealth-cones",
     accent: "#8b5cf6",
-    category: "Stealth AI",
+    category: "ai",
     thumb: "thumbs/stealth-cones.jpg",
     module: "./entries/stealth-cones/index.js",
     title: {
@@ -31,7 +65,7 @@ export const CODEX_ENTRIES = [
   {
     id: "camera-deadzone",
     accent: "#eab308",
-    category: "Camera Feel",
+    category: "feel",
     thumb: "thumbs/camera-deadzone.jpg",
     module: "./entries/camera-deadzone/index.js",
     title: {
@@ -58,7 +92,7 @@ export const CODEX_ENTRIES = [
   {
     id: "fake-1hp",
     accent: "#ec4899",
-    category: "Player Survival",
+    category: "feel",
     thumb: "thumbs/fake-1hp.jpg",
     module: "./entries/fake-1hp/index.js",
     title: {
@@ -85,7 +119,7 @@ export const CODEX_ENTRIES = [
   {
     id: "hitstop",
     accent: "#f97316",
-    category: "Combat Feel",
+    category: "feel",
     thumb: "thumbs/hitstop.jpg",
     module: "./entries/hitstop/index.js",
     title: {
@@ -112,7 +146,7 @@ export const CODEX_ENTRIES = [
   {
     id: "coyote-time",
     accent: "#2dd4bf",
-    category: "Platformer Feel",
+    category: "feel",
     thumb: "thumbs/coyote-time.jpg",
     module: "./entries/coyote-time/index.js",
     title: {
@@ -139,7 +173,7 @@ export const CODEX_ENTRIES = [
   {
     id: "rubber-banding",
     accent: "#f59e0b",
-    category: "Racing AI",
+    category: "ai",
     thumb: "thumbs/rubber-banding.jpg",
     module: "./entries/rubber-banding/index.js",
     title: {
@@ -166,7 +200,7 @@ export const CODEX_ENTRIES = [
   {
     id: "attack-tokens",
     accent: "#10b981",
-    category: "Combat AI",
+    category: "ai",
     thumb: "thumbs/attack-tokens.jpg",
     module: "./entries/attack-tokens/index.js",
     title: {
@@ -193,7 +227,7 @@ export const CODEX_ENTRIES = [
   {
     id: "astar",
     accent: "#38bdf8",
-    category: "Pathfinding",
+    category: "crowds",
     thumb: "thumbs/astar.jpg",
     module: "./entries/astar/index.js",
     title: {

@@ -1,8 +1,8 @@
 // Game Design Codex (GDC) shared application shell — sibling to FX Lab.
 // Fullscreen WebGL2 + 2D HUD, procedural Web Audio SFX/Music toggles, live keyboard/mouse gameplay, Follow-Cam & Shake!
-import { CODEX_ENTRIES, getEntryMeta } from "./catalog.js?v=8";
+import { CODEX_CATEGORIES, CODEX_ENTRIES, getEntryMeta } from "./catalog.js?v=9";
 import { clamp, cameraBasisFromOrbit, screenRayToPlaneY } from "./gl-utils.js";
-import { createAudioEngine } from "./audio.js?v=8";
+import { createAudioEngine } from "./audio.js?v=9";
 import { initSiteMenu } from "./site-menu.js";
 
 const $ = (id) => document.getElementById(id);
@@ -22,6 +22,8 @@ let lang = params.get("lang") === "pl" ? "pl" : "en";
 let paused = false;
 let activeMeta = null;
 let activeEntry = null;
+let catalogCategory = "all";
+let catalogQuery = "";
 const entryCache = new Map();
 const audio = createAudioEngine();
 
@@ -140,14 +142,42 @@ function renderRibbon() {
   }
 }
 
-function renderCatalogModal() {
+function ensureCatalogFilters() {
+  const box = document.querySelector("#catalogModal .catalog-box");
+  if (!box || $("catalogFilters")) return;
+  const head = box.querySelector(".catalog-head");
+  const bar = document.createElement("div");
+  bar.id = "catalogFilters";
+  bar.className = "catalog-filters";
+  bar.innerHTML = `
+    <input id="catalogSearch" type="search" autocomplete="off" spellcheck="false" aria-label="Filter mechanics">
+    <div id="catalogCats" class="catalog-cats" role="group" aria-label="Categories"></div>
+  `;
+  head.insertAdjacentElement("afterend", bar);
+  $("catalogSearch").addEventListener("input", (e) => {
+    catalogQuery = e.target.value.trim().toLowerCase();
+    renderCatalogGrid();
+  });
+}
+
+function renderCatalogGrid() {
   const grid = $("catalogGrid");
-  $("catalogTitle").textContent = lang === "pl" ? "Kodeks Projektowania Gier" : "Game Design Codex";
-  $("catalogSub").textContent = lang === "pl"
-    ? `${CODEX_ENTRIES.length} grywalne dioramy 3D — kliknij i zagraj klawiaturą lub myszką`
-    : `${CODEX_ENTRIES.length} playable 3D dioramas — click any concept to play live`;
+  const q = catalogQuery;
+  const filtered = CODEX_ENTRIES.filter((item) => {
+    if (catalogCategory !== "all" && item.category !== catalogCategory) return false;
+    if (!q) return true;
+    const hay = `${item.title.en} ${item.title.pl} ${item.question.en} ${item.question.pl} ${item.kicker.en} ${item.kicker.pl} ${item.id}`.toLowerCase();
+    return hay.includes(q);
+  });
   grid.innerHTML = "";
-  for (const item of CODEX_ENTRIES) {
+  if (filtered.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "catalog-empty";
+    empty.textContent = lang === "pl" ? "Brak pasujących mechanik." : "No matching mechanics.";
+    grid.appendChild(empty);
+    return;
+  }
+  for (const item of filtered) {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "gdc-card";
@@ -174,6 +204,40 @@ function renderCatalogModal() {
     });
     grid.appendChild(card);
   }
+}
+
+function renderCatalogModal() {
+  ensureCatalogFilters();
+  $("catalogTitle").textContent = lang === "pl" ? "Kodeks Projektowania Gier" : "Game Design Codex";
+  $("catalogSub").textContent = lang === "pl"
+    ? `${CODEX_ENTRIES.length} grywalne dioramy 3D w ${CODEX_CATEGORIES.length - 1} kategoriach — kliknij i zagraj`
+    : `${CODEX_ENTRIES.length} playable 3D dioramas across ${CODEX_CATEGORIES.length - 1} categories — click to play live`;
+
+  const searchEl = $("catalogSearch");
+  if (searchEl) {
+    searchEl.placeholder = lang === "pl" ? "Szukaj mechaniki lub techniki…" : "Filter mechanics or techniques…";
+  }
+
+  const catsEl = $("catalogCats");
+  if (catsEl) {
+    catsEl.innerHTML = "";
+    for (const cat of CODEX_CATEGORIES) {
+      const count = cat.id === "all"
+        ? CODEX_ENTRIES.length
+        : CODEX_ENTRIES.filter((e) => e.category === cat.id).length;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.dataset.cat = cat.id;
+      b.textContent = `${cat[lang]} (${count})`;
+      b.setAttribute("aria-pressed", catalogCategory === cat.id ? "true" : "false");
+      b.addEventListener("click", () => {
+        catalogCategory = cat.id;
+        renderCatalogModal();
+      });
+      catsEl.appendChild(b);
+    }
+  }
+  renderCatalogGrid();
 }
 
 function renderHud() {
