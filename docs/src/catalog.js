@@ -2,6 +2,33 @@
 
 export const CODEX_ENTRIES = [
   {
+    id: "fake-1hp",
+    accent: "#ec4899",
+    category: "Player Survival",
+    thumb: "thumbs/fake-1hp.jpg",
+    module: "./entries/fake-1hp/index.js",
+    title: {
+      en: "Fake 1 HP & Death's Door",
+      pl: "Oszukane 1 HP (Death's Door)",
+    },
+    kicker: {
+      en: "SURVIVAL MATH · PLAYABLE MINI-GAME #06",
+      pl: "MATEMATYKA PRZETRWANIA · GRYWALNA MINI-GRA #06",
+    },
+    question: {
+      en: "Why you always survive on 1 pixel of red health: hidden HP, 1 HP clamps & mercy aim scatter.",
+      pl: "Czemu tak często przeżywasz na 1 pikselu HP: ukryty pasek życia, tarcza 1 HP i rozrzut laserów AI.",
+    },
+    note: {
+      en: "Weave through drone lasers with WASD + Shift Dash and shoot back with Space / Click. Watch the X-Ray HUD: the bottom 20% of your red bar secretly holds 50% of your REAL HP, lethal hits clamp to 1 HP, and enemy cones flare to ±27°!",
+      pl: "Omijaj lasery dronów (WASD + Shift Dash) i strzelaj Spacją / LPM. Zobacz pasek X-Ray: dolne 20% czerwonego paska kryje aż 50% prawdziwego HP, śmiertelny strzał zatrzymuje się na 1 HP, a stożki celowania dronów rozszerzają się do ±27°!",
+    },
+    hint: {
+      en: "WASD = Move · Space / Click = Shoot · Shift = Dash · T = Fake 1 HP / Honest · X = X-Ray · H = Big Hit",
+      pl: "WASD = Ruch · Spacja / LPM = Strzał · Shift = Dash · T = Triki 1 HP / Uczciwe · X = X-Ray · H = Mocny cios",
+    },
+  },
+  {
     id: "hitstop",
     accent: "#f97316",
     category: "Combat Feel",

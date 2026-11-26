@@ -115,6 +115,12 @@ export function createAudioEngine() {
       lead: [220.0, 0, 261.63, 293.66, 329.63, 0, 293.66, 0, 220.0, 0, 329.63, 392.0, 329.63, 293.66, 261.63, 0],
       wave: "sawtooth",
     },
+    "fake-1hp": {
+      tempoMs: 135,
+      bass: [110.0, 110.0, 0, 110.0, 130.81, 130.81, 0, 130.81, 146.83, 146.83, 0, 146.83, 98.0, 98.0, 110.0, 0],
+      lead: [440.0, 0, 523.25, 659.25, 587.33, 0, 523.25, 440.0, 659.25, 0, 783.99, 659.25, 587.33, 523.25, 440.0, 0],
+      wave: "square",
+    },
   };
 
   function playMusicTone(freq, dur, vol, type = "triangle", detune = 0) {
@@ -375,6 +381,26 @@ export function createAudioEngine() {
       playNoise(0.35, 620, 0.9, 0.24, "lowpass");
       playTone(160, 38, 0.36, 0.26, "sawtooth");
       setTimeout(() => playTone(660, 990, 0.28, 0.14, "sine"), 55);
+    },
+
+    // Cyber Fake 1 HP SFX
+    laserShot(friendly = true) {
+      if (!ensureContext()) return;
+      if (friendly) {
+        playTone(920, 340, 0.11, 0.14, "triangle");
+      } else {
+        playTone(540, 210, 0.12, 0.09, "sawtooth");
+      }
+    },
+    laserHit() {
+      if (!ensureContext()) return;
+      playTone(190, 68, 0.16, 0.22, "sawtooth");
+      playNoise(0.10, 1100, 1.5, 0.12, "bandpass");
+    },
+    mercyShield() {
+      if (!ensureContext()) return;
+      playTone(440, 880, 0.22, 0.20, "triangle");
+      setTimeout(() => playTone(880, 1320, 0.26, 0.18, "sine"), 50);
     },
   };
 }
