@@ -9,6 +9,33 @@ export const CODEX_CATEGORIES = [
 
 export const CODEX_ENTRIES = [
   {
+    id: "flow-field",
+    accent: "#22c55e",
+    category: "crowds",
+    thumb: "thumbs/flow-field.jpg",
+    module: "./entries/flow-field/index.js",
+    title: {
+      en: "Flow Field & Dynamic NavMesh",
+      pl: "Flow Field i Dynamiczny NavMesh",
+    },
+    kicker: {
+      en: "CROWD PATHING · PLAYABLE MINI-GAME #10",
+      pl: "NAWIGACJA TŁUMU · GRYWALNA MINI-GRA #10",
+    },
+    question: {
+      en: "How RTS games move 96+ units around walls you paint LIVE using ONE O(grid) vector field instead of 96 A* runs.",
+      pl: "Jak gry RTS prowadzą 96+ jednostek wokół ścian rysowanych NA ŻYWO jednym polem wektorów zamiast 96 osobnych A*.",
+    },
+    note: {
+      en: "Click & drag across tiles to paint or erase 3D Obsidian Walls LIVE, and Shift+Click (or press Space) to move the Golden Goal Spire! Watch 96 Hover-Bots reroute like liquid along the 1× BFS Flow Arrows — then press [T] for Naive mode to see them jam dead-stuck.",
+      pl: "Przeciągnij LPM po kafelkach, żeby malować lub usuwać ściany 3D NA ŻYWO, a Shift+Klik (lub Spacja) przenosi Złoty Cel! Zobacz, jak 96 botów opływa ściany po jednym polu strzałek — a potem wciśnij [T] (tryb Naiwny), żeby zobaczyć zator.",
+    },
+    hint: {
+      en: "Drag LPM = Paint/Erase Walls · Right-Drag = Orbit · Shift+Click / Space = Move Goal · T = Flow/Naive · V = Maze · X = Arrows",
+      pl: "Przeciągnij LPM = Rysuj/Usuń ściany · PPM = Kamera · Shift+Klik / Spacja = Cel · T = Flow/Naiwny · V = Labirynt · X = Strzałki",
+    },
+  },
+  {
     id: "boids-flocking",
     accent: "#06b6d4",
     category: "crowds",
