@@ -100,6 +100,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
   let koTimer = 0;
   let kills = 0;
   let parries = 0;
+  let lastSlashHits = 0;
   let turnTimer = 0;
   let activeIds = [0];
   let flyOrb = null;
@@ -155,13 +156,14 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       g.vx = 0; g.vz = 0;
       g.yaw = Math.atan2(hero.x - g.x, hero.z - g.z);
       g.hp = g.maxHp; g.stunTimer = 0; g.hitFlash = 0;
-      g.attackTimer = 0; g.dealtHitThisSwing = false; g.telegraphing = false;
+      g.attackTimer = tokenCount === 0 ? (g.id * 0.24) % 1.15 : 0;
+      g.dealtHitThisSwing = false; g.telegraphing = false;
       g.slashProg = 0; g.tilt = 0; g.walkAmp = 0;
     }
   }
 
   function reset(keepPlayerMode = false) {
-    time = 0; hp = 100; koTimer = 0; turnTimer = 0;
+    time = 0; hp = 100; koTimer = 0; turnTimer = 0; lastSlashHits = 0;
     slowMoTimer = 0; shakeMag = 0;
     if (!keepPlayerMode) { kills = 0; parries = 0; }
     activeIds = tokenCount === 0 ? [] : tokenCount === 1 ? [0] : [0, 2];
@@ -232,41 +234,63 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
 
     audio?.slash?.(step);
 
-    const reach = isHeavy ? 3.25 : 2.85;
+    const reach = isHeavy ? 3.15 : 2.75;
+    const minDot = isHeavy ? 0.08 : 0.35; // strict front blade cone — never hits enemies behind you!
+    const maxTargets = isHeavy ? 2 : 1;   // single-target light slash, 2-target heavy cleave (no 5-man stunlock!)
     const dmg = isHeavy ? 2 : 1;
-    let hitAny = false;
-    let koAny = false;
 
+    const candidates = [];
     for (const g of guards) {
       const dx = g.x - hero.x, dz = g.z - hero.z;
       const dist = Math.hypot(dx, dz);
       if (dist < reach) {
         const dot = (dx * fx + dz * fz) / Math.max(0.01, dist);
-        if (dot > (isHeavy ? -0.15 : 0.08) || dist < 1.45) {
-          hitAny = true;
-          g.hp -= dmg;
-          g.hitFlash = 1.0;
-          g.stunTimer = isHeavy ? 0.72 : 0.42;
-          g.attackTimer = 0; g.dealtHitThisSwing = false; g.telegraphing = false;
-          const push = isHeavy ? 7.6 : 5.0;
-          g.vx += (dx / Math.max(0.1, dist)) * push;
-          g.vz += (dz / Math.max(0.1, dist)) * push;
-          spawnSparks(g.x, g.z, isHeavy ? [1.0, 0.88, 0.25] : [0.28, 1.0, 0.90], isHeavy ? 18 : 10);
-          if (g.hp <= 0) {
-            koAny = true;
-            kills++;
-            spawnSparks(g.x, g.z, [1.0, 0.85, 0.22], 20, 2.0);
-            showBanner(isHeavy ? `HEAVY K.O.! (${kills})` : `K.O.! (${kills})`, "#f59e0b", "#1c1204", 0.80);
-            const wasActive = activeIds.includes(g.id);
-            g.hp = g.maxHp;
-            g.stunTimer = 0.35;
-            g.baseAngle += Math.PI * 0.85;
-            g.x = Math.max(-5.2, Math.min(5.2, Math.sin(g.baseAngle) * 5.0));
-            g.z = Math.max(-5.6, Math.min(5.6, Math.cos(g.baseAngle) * 5.0));
-            g.vx = 0; g.vz = 0;
-            if (wasActive && tokenCount > 0) passTokenFrom(g.id);
-          }
+        if (dot > minDot) {
+          candidates.push({ g, dx, dz, dist, score: dist - dot * 0.45 });
         }
+      }
+    }
+    candidates.sort((a, b) => a.score - b.score);
+    const targets = candidates.slice(0, maxTargets);
+    lastSlashHits = targets.length;
+
+    let hitAny = false;
+    let koAny = false;
+
+    for (const { g, dx, dz, dist } of targets) {
+      hitAny = true;
+      g.hp -= dmg;
+      g.hitFlash = 1.0;
+
+      // In Chaos mode (Tokens OFF), light slashes cannot interrupt an already-committed skeleton swing!
+      const hyperArmor = tokenCount === 0 && !isHeavy && (g.slashProg > 0.08 || g.telegraphing);
+      if (!hyperArmor) {
+        g.stunTimer = isHeavy ? 0.72 : 0.42;
+        g.attackTimer = 0; g.dealtHitThisSwing = false; g.telegraphing = false;
+      }
+      const push = (isHeavy ? 7.6 : 5.0) * (hyperArmor ? 0.45 : 1.0);
+      g.vx += (dx / Math.max(0.1, dist)) * push;
+      g.vz += (dz / Math.max(0.1, dist)) * push;
+      spawnSparks(g.x, g.z, isHeavy ? [1.0, 0.88, 0.25] : [0.28, 1.0, 0.90], isHeavy ? 18 : 10);
+      if (g.hp <= 0) {
+        koAny = true;
+        kills++;
+        spawnSparks(g.x, g.z, [1.0, 0.85, 0.22], 20, 2.0);
+        showBanner(isHeavy ? `HEAVY K.O.! (${kills})` : `K.O.! (${kills})`, "#f59e0b", "#1c1204", 0.80);
+        const wasActive = activeIds.includes(g.id);
+        g.hp = g.maxHp;
+        g.stunTimer = 0.35;
+        g.attackTimer = tokenCount === 0 ? (g.id * 0.24) % 1.15 : 0;
+        g.dealtHitThisSwing = false; g.telegraphing = false;
+        // Preserve g.baseAngle so the 5 flanking slots never collapse onto the same angle!
+        const spawnAng = g.baseAngle + time * 0.18;
+        let rx = Math.sin(spawnAng) * 4.9;
+        let rz = Math.cos(spawnAng) * 4.9;
+        if (Math.hypot(rx - hero.x, rz - hero.z) < 2.8) { rx = -rx; rz = -rz; }
+        g.x = Math.max(-5.1, Math.min(5.1, rx));
+        g.z = Math.max(-5.6, Math.min(5.6, rz));
+        g.vx = 0; g.vz = 0;
+        if (wasActive && tokenCount > 0) passTokenFrom(g.id);
       }
     }
 
@@ -467,23 +491,37 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         g.stunTimer = Math.max(0, g.stunTimer - h);
         g.hitFlash = Math.max(0, g.hitFlash - h * 3);
 
-        const ang = g.baseAngle + time * 0.42;
-        const targetX = hero.x + Math.sin(ang) * 1.50;
-        const targetZ = hero.z + Math.cos(ang) * 1.50;
+        const ang = g.baseAngle + time * 0.20 + Math.sin(time * 0.55 + g.id * 1.4) * 0.16;
+        const targetX = Math.max(-4.9, Math.min(4.9, hero.x + Math.sin(ang) * 1.68));
+        const targetZ = Math.max(-5.4, Math.min(5.4, hero.z + Math.cos(ang) * 1.68));
         let dvx = 0, dvz = 0;
         if (g.stunTimer <= 0 && koTimer <= 0) {
           const dx = targetX - g.x, dz = targetZ - g.z;
           const d = Math.hypot(dx, dz);
-          if (d > 0.15) {
-            const sp = Math.min(3.6, d * 2.4);
+          if (d > 0.14) {
+            const sp = Math.min(3.8, d * 2.5);
             dvx = (dx / d) * sp; dvz = (dz / d) * sp;
           }
+          // Active flanking repulsion so skeletons route around each other into a 360° surround instead of queuing!
+          for (const o of guards) {
+            if (o === g) continue;
+            const sx = g.x - o.x, sz = g.z - o.z;
+            const sd = Math.hypot(sx, sz);
+            if (sd > 0.001 && sd < 2.25) {
+              const push = (2.25 - sd) * 2.35;
+              dvx += (sx / sd) * push;
+              dvz += (sz / sd) * push;
+            }
+          }
+          const dSpd = Math.hypot(dvx, dvz);
+          if (dSpd > 4.2) { dvx = (dvx / dSpd) * 4.2; dvz = (dvz / dSpd) * 4.2; }
+
           g.yaw += angleDiff(Math.atan2(hero.x - g.x, hero.z - g.z), g.yaw) * smoothTurn;
           g.tilt *= Math.exp(-10 * h);
 
-          if (Math.hypot(hero.x - g.x, hero.z - g.z) < 2.15) {
+          if (Math.hypot(hero.x - g.x, hero.z - g.z) < 2.35) {
             g.attackTimer += h;
-            const cyc = (g.attackTimer + g.phase * 0.22) % 1.15;
+            const cyc = g.attackTimer % 1.15;
             if (cyc < 0.50) {
               const u = smoothstep01(cyc / 0.50);
               g.swordPitch += (-1.15 * u - g.swordPitch) * (1 - Math.exp(-12 * h));
@@ -512,8 +550,8 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         }
         g.vx += (dvx - g.vx) * (1 - Math.exp(-6.5 * h));
         g.vz += (dvz - g.vz) * (1 - Math.exp(-6.5 * h));
-        g.x = Math.max(-5.2, Math.min(5.2, g.x + g.vx * h));
-        g.z = Math.max(-5.8, Math.min(5.8, g.z + g.vz * h));
+        g.x = Math.max(-5.1, Math.min(5.1, g.x + g.vx * h));
+        g.z = Math.max(-5.6, Math.min(5.6, g.z + g.vz * h));
       }
       if (!playerControl && koTimer <= 0) {
         hero.yaw += angleDiff(Math.sin(time * 4.5) * 1.2, hero.yaw) * smoothTurn;
@@ -596,8 +634,72 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         }
         g.vx += (dvx - g.vx) * (1 - Math.exp(-6.5 * h));
         g.vz += (dvz - g.vz) * (1 - Math.exp(-6.5 * h));
-        g.x = Math.max(-5.2, Math.min(5.2, g.x + g.vx * h));
-        g.z = Math.max(-5.8, Math.min(5.8, g.z + g.vz * h));
+        g.x = Math.max(-5.1, Math.min(5.1, g.x + g.vx * h));
+        g.z = Math.max(-5.6, Math.min(5.6, g.z + g.vz * h));
+      }
+    }
+
+    // Solid 3-pass Fighter-to-Fighter Body Separation (prevents skeleton clumping & mesh stacking in ALL modes!)
+    const MIN_GUARD_SEP = 1.38;
+    const MIN_HERO_SEP = 1.22;
+    const allowHeroCollide = hero.dodgeTimer <= 0.04 && koTimer <= 0;
+    for (let pass = 0; pass < 3; pass++) {
+      for (let i = 0; i < guards.length; i++) {
+        for (let j = i + 1; j < guards.length; j++) {
+          const a = guards[i], b = guards[j];
+          let dx = b.x - a.x, dz = b.z - a.z;
+          let d = Math.hypot(dx, dz);
+          if (d < MIN_GUARD_SEP) {
+            let nx, nz;
+            if (d < 0.001) {
+              const fa = (i * 1.7 + j * 2.3);
+              nx = Math.sin(fa); nz = Math.cos(fa);
+              d = 0.001;
+            } else {
+              nx = dx / d; nz = dz / d;
+            }
+            const push = (MIN_GUARD_SEP - d) * 0.5;
+            a.x -= nx * push; a.z -= nz * push;
+            b.x += nx * push; b.z += nz * push;
+            const rvn = (b.vx - a.vx) * nx + (b.vz - a.vz) * nz;
+            if (rvn < 0) {
+              const imp = -rvn * 0.5;
+              a.vx -= nx * imp; a.vz -= nz * imp;
+              b.vx += nx * imp; b.vz += nz * imp;
+            }
+          }
+        }
+      }
+      if (allowHeroCollide) {
+        for (const g of guards) {
+          let dx = g.x - hero.x, dz = g.z - hero.z;
+          let d = Math.hypot(dx, dz);
+          if (d < MIN_HERO_SEP) {
+            let nx, nz;
+            if (d < 0.001) {
+              nx = Math.sin(g.baseAngle); nz = Math.cos(g.baseAngle);
+              d = 0.001;
+            } else {
+              nx = dx / d; nz = dz / d;
+            }
+            const overlap = MIN_HERO_SEP - d;
+            g.x += nx * overlap * 0.78;
+            g.z += nz * overlap * 0.78;
+            hero.x -= nx * overlap * 0.22;
+            hero.z -= nz * overlap * 0.22;
+            const rvn = (g.vx - hero.vx) * nx + (g.vz - hero.vz) * nz;
+            if (rvn < 0) {
+              g.vx -= nx * rvn * 0.75;
+              g.vz -= nz * rvn * 0.75;
+            }
+          }
+        }
+      }
+      hero.x = Math.max(-4.9, Math.min(4.9, hero.x));
+      hero.z = Math.max(-5.4, Math.min(5.4, hero.z));
+      for (const g of guards) {
+        g.x = Math.max(-5.1, Math.min(5.1, g.x));
+        g.z = Math.max(-5.6, Math.min(5.6, g.z));
       }
     }
 
@@ -737,6 +839,14 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       if (button === 0) performHeroSlash(worldPt);
     },
     getDebugState() {
+      let minGuardSep = 99;
+      let minHeroSep = 99;
+      for (let i = 0; i < guards.length; i++) {
+        minHeroSep = Math.min(minHeroSep, Math.hypot(guards[i].x - hero.x, guards[i].z - hero.z));
+        for (let j = i + 1; j < guards.length; j++) {
+          minGuardSep = Math.min(minGuardSep, Math.hypot(guards[i].x - guards[j].x, guards[i].z - guards[j].z));
+        }
+      }
       return {
         playerControl,
         x: +hero.x.toFixed(2),
@@ -748,6 +858,9 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         parries,
         comboStep: hero.comboStep,
         tokenCount,
+        lastSlashHits,
+        minGuardSep: +minGuardSep.toFixed(2),
+        minHeroSep: +minHeroSep.toFixed(2),
       };
     },
     reset: () => reset(false),
