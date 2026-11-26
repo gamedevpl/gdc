@@ -490,8 +490,9 @@ function appendArticulatedFighter(verts, indices, pack, opts) {
   const baseV = verts.length / 10;
   const cy = Math.cos(yaw), sy = Math.sin(yaw);
   const ct = Math.cos(tilt), st = Math.sin(tilt);
-  const walkBob = Math.abs(Math.sin(walkPhase)) * 0.075 * walkAmp;
-  const legAngL = Math.sin(walkPhase) * 0.68 * walkAmp;
+  // Silky C-infinity smooth stride bob (no sharp V-shaped pogo cusp!) and natural stride angle
+  const walkBob = (0.5 - 0.5 * Math.cos(walkPhase * 2.0)) * 0.032 * walkAmp;
+  const legAngL = Math.sin(walkPhase) * 0.44 * walkAmp;
   const legAngR = -legAngL;
   const { count, pos, norm, col, part, rough, idx } = pack;
 

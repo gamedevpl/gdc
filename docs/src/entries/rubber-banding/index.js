@@ -229,7 +229,6 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       const pp = projectPoint([p.x, p.y + 1.40, p.z], viewProj, ow, oh);
       if (pp && pp.z < 1) {
         if (p.crashTimer > 0.1) drawBadge(ovCtx, pp.x, pp.y, "CRASH!", "#ef4444", "#ffffff", ow);
-        else if (p.wallGrind) drawBadge(ovCtx, pp.x, pp.y, "WALL SLOW!", "#f97316", "#1c1204", ow);
         else if (p.boostGlow > 0.3) drawBadge(ovCtx, pp.x, pp.y, "YOU · NITRO!", "#10e8a8", "#062119", ow);
         else if (!followCam) drawBadge(ovCtx, pp.x, pp.y, "YOU", "#10e8a8", "#062119", ow);
       }

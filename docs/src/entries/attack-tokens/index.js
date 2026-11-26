@@ -1,5 +1,6 @@
-// Playable Entry #2: Attack Tokens — Juicy 3-Hit Combo Sword Combat + Hitstop + Screen Shake + Dodge Roll + Parry!
-// WASD/Arrows = Move, Left-Click/J/E = 3-Hit Combo Slash, Space/Right-Click = Shield Block & Timed Perfect Parry, Shift = Dodge Roll!
+// Playable Entry #2: Attack Tokens — Silky-Smooth Velocity-Driven 3D Sword & Shield Combat!
+// Smooth acceleration/deceleration, smooth velocity-based sword lunge (ZERO teleport!), smooth damped camera impulse,
+// smooth skeleton steering & swing easing, natural leg stride, Space/Click = 3-Hit Combo, E/Right-Click = Block & Parry, Shift = Dodge!
 import { createArenaRenderer } from "./arena-renderer.js";
 
 function project3D(world, vp, w, h) {
@@ -50,7 +51,7 @@ function drawHpPips(ctx, x, y, hp, maxHp) {
 function drawCombatHud(ctx, ow, state, lang) {
   if (ow < 520) return;
   const pl = lang === "pl";
-  const boxW = Math.min(ow - 24, 445);
+  const boxW = Math.min(ow - 24, 460);
   const boxH = 38;
   const x = ow - boxW - 18;
   const y = 78;
@@ -65,8 +66,8 @@ function drawCombatHud(ctx, ow, state, lang) {
 
   const lbl = state.playerControl
     ? (pl
-      ? `HP ${Math.round(state.hp)} · KO ${state.kills} · PARRY ${state.parries} · SPACJA=CIĘCIE · PPM/E=BLOK`
-      : `HP ${Math.round(state.hp)} · KOs ${state.kills} · PARRIES ${state.parries} · SPACE=SLASH · E=BLOCK`)
+      ? `HP ${Math.round(state.hp)} · KO ${state.kills} · PARRY ${state.parries} · SPACJA=CIĘCIE · E/PPM=BLOK`
+      : `HP ${Math.round(state.hp)} · KOs ${state.kills} · PARRIES ${state.parries} · SPACE=SLASH · E/RMB=BLOCK`)
     : (pl ? `AUTO-DEMO · WALCZ: WASD + SPACJA/LPM + E/PPM` : `AUTO-DEMO · FIGHT: WASD + SPACE/CLICK + E/RMB`);
   ctx.font = "700 12px 'Courier New', monospace";
   ctx.fillStyle = state.playerControl ? "#76ddaf" : "#ffe1a2";
@@ -81,6 +82,11 @@ function angleDiff(a, b) {
   while (d > Math.PI) d -= Math.PI * 2;
   while (d < -Math.PI) d += Math.PI * 2;
   return d;
+}
+
+function smoothstep01(x) {
+  const t = Math.max(0, Math.min(1, x));
+  return t * t * (3 - 2 * t);
 }
 
 export function createEntry(gl, { requestHudRefresh, audio } = {}) {
@@ -98,15 +104,16 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
   let activeIds = [0];
   let flyOrb = null;
   let bannerMsg = null;
-  let hitstopTimer = 0;
+  let slowMoTimer = 0; // gentle smooth slow-mo pulse instead of choppy full-frame freeze!
   let shakeMag = 0;
+  let shakePhase = 0;
   const sparks = [];
 
   const hero = {
-    x: 0, y: 0, z: 0, yaw: 0,
+    x: 0, y: 0, z: 0, vx: 0, vz: 0, yaw: 0,
     torsoYaw: 0, headYaw: 0, shieldPitch: 0.18, swordPitch: 0, tilt: 0, hitFlash: 0,
     walkPhase: 0, walkAmp: 0,
-    slashTimer: 0, slashDur: 0.24, slashCooldown: 0, slashProg: 0,
+    slashTimer: 0, slashDur: 0.26, slashCooldown: 0, slashProg: 0,
     comboStep: 0, comboResetTimer: 0,
     dodgeTimer: 0, dodgeCooldown: 0, dodgeDx: 0, dodgeDz: 0,
     blocking: false, blockStartTime: -10,
@@ -115,7 +122,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
   const guards = Array.from({ length: 5 }, (_, i) => ({
     id: i,
     baseAngle: (i / 5) * Math.PI * 2 + 0.3,
-    x: 0, y: 0, z: 0, yaw: 0,
+    x: 0, y: 0, z: 0, vx: 0, vz: 0, yaw: 0,
     hasToken: false, danger: 0,
     torsoYaw: 0, shieldPitch: 0.1, swordPitch: 0, tilt: 0,
     walkPhase: i * 1.1, walkAmp: 0,
@@ -123,17 +130,16 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     phase: i * 1.25,
     hp: 3, maxHp: 3, stunTimer: 0, hitFlash: 0,
     attackTimer: 0, dealtHitThisSwing: false,
-    knockVx: 0, knockVz: 0,
   }));
 
-  function spawnSparks(x, z, color, n = 10, lift = 1.7) {
+  function spawnSparks(x, z, color, n = 10, lift = 1.6) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
-      const spd = 1.5 + Math.random() * 3.4;
+      const spd = 1.4 + Math.random() * 2.8;
       sparks.push({
-        x, y: 0.85 + Math.random() * 0.5, z,
-        vx: Math.cos(a) * spd, vy: lift + Math.random() * 2.4, vz: Math.sin(a) * spd,
-        r: color[0], g: color[1], b: color[2], life: 0.9,
+        x, y: 0.85 + Math.random() * 0.45, z,
+        vx: Math.cos(a) * spd, vy: lift + Math.random() * 2.1, vz: Math.sin(a) * spd,
+        r: color[0], g: color[1], b: color[2], life: 0.85,
       });
     }
   }
@@ -146,23 +152,24 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     for (const g of guards) {
       g.x = hero.x + Math.sin(g.baseAngle) * 4.3;
       g.z = hero.z + Math.cos(g.baseAngle) * 4.3;
+      g.vx = 0; g.vz = 0;
       g.yaw = Math.atan2(hero.x - g.x, hero.z - g.z);
       g.hp = g.maxHp; g.stunTimer = 0; g.hitFlash = 0;
       g.attackTimer = 0; g.dealtHitThisSwing = false; g.telegraphing = false;
-      g.knockVx = 0; g.knockVz = 0; g.slashProg = 0; g.tilt = 0;
+      g.slashProg = 0; g.tilt = 0; g.walkAmp = 0;
     }
   }
 
   function reset(keepPlayerMode = false) {
     time = 0; hp = 100; koTimer = 0; turnTimer = 0;
-    hitstopTimer = 0; shakeMag = 0;
+    slowMoTimer = 0; shakeMag = 0;
     if (!keepPlayerMode) { kills = 0; parries = 0; }
     activeIds = tokenCount === 0 ? [] : tokenCount === 1 ? [0] : [0, 2];
     flyOrb = null;
     bannerMsg = null;
     sparks.length = 0;
-    hero.x = 0; hero.z = 0; hero.y = 0; hero.yaw = 0;
-    hero.tilt = 0; hero.hitFlash = 0;
+    hero.x = 0; hero.z = 0; hero.y = 0; hero.vx = 0; hero.vz = 0; hero.yaw = 0;
+    hero.tilt = 0; hero.hitFlash = 0; hero.walkAmp = 0;
     hero.slashTimer = 0; hero.slashCooldown = 0; hero.slashProg = 0;
     hero.comboStep = 0; hero.comboResetTimer = 0;
     hero.dodgeTimer = 0; hero.dodgeCooldown = 0;
@@ -195,8 +202,9 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     hero.dodgeDx = dx; hero.dodgeDz = dz;
     hero.dodgeTimer = 0.28;
     hero.dodgeCooldown = 0.65;
-    hero.yaw = Math.atan2(dx, dz);
-    spawnSparks(hero.x, hero.z, [0.25, 1.0, 0.90], 8, 0.8);
+    hero.vx = dx * 9.5;
+    hero.vz = dz * 9.5;
+    spawnSparks(hero.x, hero.z, [0.25, 1.0, 0.90], 7, 0.7);
     audio?.dodge?.();
   }
 
@@ -208,24 +216,23 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       if (Math.hypot(dx, dz) > 0.2) hero.yaw = Math.atan2(dx, dz);
     }
 
-    // 3-Hit Combo progression: 0 (Right->Left) -> 1 (Left->Right) -> 2 (Heavy Cleave Finisher!)
     const step = hero.comboResetTimer > 0 ? (hero.comboStep + 1) % 3 : 0;
     hero.comboStep = step;
     const isHeavy = step === 2;
-    hero.slashDur = isHeavy ? 0.32 : 0.22;
+    hero.slashDur = isHeavy ? 0.32 : 0.24;
     hero.slashTimer = hero.slashDur;
-    hero.slashCooldown = isHeavy ? 0.42 : 0.24;
-    hero.comboResetTimer = 0.80;
+    hero.slashCooldown = isHeavy ? 0.42 : 0.26;
+    hero.comboResetTimer = 0.85;
 
-    // Crisp micro-lunge forward into the swing!
+    // Smooth forward velocity lunge (NO instant teleport jump!)
     const fx = Math.sin(hero.yaw), fz = Math.cos(hero.yaw);
-    const lunge = isHeavy ? 0.62 : 0.36;
-    hero.x = Math.max(-4.9, Math.min(4.9, hero.x + fx * lunge));
-    hero.z = Math.max(-5.4, Math.min(5.4, hero.z + fz * lunge));
+    const lungeVel = isHeavy ? 5.2 : 3.2;
+    hero.vx += fx * lungeVel;
+    hero.vz += fz * lungeVel;
 
     audio?.slash?.(step);
 
-    const reach = isHeavy ? 3.25 : 2.80;
+    const reach = isHeavy ? 3.25 : 2.85;
     const dmg = isHeavy ? 2 : 1;
     let hitAny = false;
     let koAny = false;
@@ -239,23 +246,24 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
           hitAny = true;
           g.hp -= dmg;
           g.hitFlash = 1.0;
-          g.stunTimer = isHeavy ? 0.80 : 0.48;
+          g.stunTimer = isHeavy ? 0.72 : 0.42;
           g.attackTimer = 0; g.dealtHitThisSwing = false; g.telegraphing = false;
-          const push = isHeavy ? 9.5 : 6.4;
-          g.knockVx = (dx / Math.max(0.1, dist)) * push;
-          g.knockVz = (dz / Math.max(0.1, dist)) * push;
-          spawnSparks(g.x, g.z, isHeavy ? [1.0, 0.88, 0.25] : [0.28, 1.0, 0.90], isHeavy ? 20 : 12);
+          const push = isHeavy ? 7.6 : 5.0;
+          g.vx += (dx / Math.max(0.1, dist)) * push;
+          g.vz += (dz / Math.max(0.1, dist)) * push;
+          spawnSparks(g.x, g.z, isHeavy ? [1.0, 0.88, 0.25] : [0.28, 1.0, 0.90], isHeavy ? 18 : 10);
           if (g.hp <= 0) {
             koAny = true;
             kills++;
-            spawnSparks(g.x, g.z, [1.0, 0.85, 0.22], 24, 2.2);
+            spawnSparks(g.x, g.z, [1.0, 0.85, 0.22], 20, 2.0);
             showBanner(isHeavy ? `HEAVY K.O.! (${kills})` : `K.O.! (${kills})`, "#f59e0b", "#1c1204", 0.80);
             const wasActive = activeIds.includes(g.id);
             g.hp = g.maxHp;
-            g.stunTimer = 0.45;
+            g.stunTimer = 0.35;
             g.baseAngle += Math.PI * 0.85;
-            g.x = Math.max(-5.1, Math.min(5.1, Math.sin(g.baseAngle) * 4.8));
-            g.z = Math.max(-5.6, Math.min(5.6, Math.cos(g.baseAngle) * 4.8));
+            g.x = Math.max(-5.2, Math.min(5.2, Math.sin(g.baseAngle) * 5.0));
+            g.z = Math.max(-5.6, Math.min(5.6, Math.cos(g.baseAngle) * 5.0));
+            g.vx = 0; g.vz = 0;
             if (wasActive && tokenCount > 0) passTokenFrom(g.id);
           }
         }
@@ -263,13 +271,14 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     }
 
     if (hitAny) {
-      hitstopTimer = isHeavy ? 0.065 : 0.040;
-      shakeMag = Math.max(shakeMag, isHeavy ? 0.34 : 0.18);
+      if (isHeavy) slowMoTimer = 0.055; // brief smooth slow-mo on heavy finisher only — never stutters!
+      shakeMag = Math.max(shakeMag, isHeavy ? 0.11 : 0.055);
+      shakePhase = 0;
       if (koAny) audio?.enemyKo?.();
       else audio?.hitEnemy?.(isHeavy);
       if (!koAny && isHeavy) showBanner("HEAVY CLEAVE!", "#00e4ac", "#042119", 0.55);
     } else {
-      spawnSparks(hero.x + fx * 1.15, hero.z + fz * 1.15, [0.30, 0.95, 0.85], 4, 0.9);
+      spawnSparks(hero.x + fx * 1.15, hero.z + fz * 1.15, [0.30, 0.95, 0.85], 4, 0.8);
     }
   }
 
@@ -285,22 +294,24 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     if (playerControl && hero.blocking && facingAttacker) {
       if (isParryWindow) {
         parries++;
-        g.stunTimer = 1.65;
-        g.knockVx = (g.x - hero.x) * 4.6;
-        g.knockVz = (g.z - hero.z) * 4.6;
-        hitstopTimer = 0.085;
-        shakeMag = Math.max(shakeMag, 0.42);
-        spawnSparks((hero.x + g.x) * 0.5, (hero.z + g.z) * 0.5, [0.25, 1.0, 0.95], 26, 2.4);
+        g.stunTimer = 1.55;
+        g.vx = (g.x - hero.x) * 3.8;
+        g.vz = (g.z - hero.z) * 3.8;
+        slowMoTimer = 0.075;
+        shakeMag = Math.max(shakeMag, 0.13);
+        shakePhase = 0;
+        spawnSparks((hero.x + g.x) * 0.5, (hero.z + g.z) * 0.5, [0.25, 1.0, 0.95], 22, 2.2);
         showBanner("PERFECT PARRY!", "#00e4ac", "#042119", 0.95);
         audio?.parry?.();
         if (tokenCount > 0 && activeIds.includes(g.id)) passTokenFrom(g.id);
         return;
       }
       hp = Math.max(1, hp - 4);
-      g.knockVx = (g.x - hero.x) * 2.6;
-      g.knockVz = (g.z - hero.z) * 2.6;
-      shakeMag = Math.max(shakeMag, 0.14);
-      spawnSparks((hero.x + g.x) * 0.5, (hero.z + g.z) * 0.5, [1.0, 0.88, 0.35], 12);
+      g.vx = (g.x - hero.x) * 2.2;
+      g.vz = (g.z - hero.z) * 2.2;
+      shakeMag = Math.max(shakeMag, 0.05);
+      shakePhase = 0;
+      spawnSparks((hero.x + g.x) * 0.5, (hero.z + g.z) * 0.5, [1.0, 0.88, 0.35], 10);
       showBanner("BLOCKED!", "#38bdf8", "#041c24", 0.55);
       audio?.block?.();
       return;
@@ -309,30 +320,33 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     const dmg = tokenCount === 0 ? 22 : 17;
     hp = Math.max(0, hp - dmg);
     hero.hitFlash = 1.0;
-    shakeMag = Math.max(shakeMag, 0.32);
-    spawnSparks(hero.x, hero.z, [1.0, 0.22, 0.20], 14);
+    shakeMag = Math.max(shakeMag, 0.10);
+    shakePhase = 0;
+    spawnSparks(hero.x, hero.z, [1.0, 0.22, 0.20], 12);
     audio?.playerHurt?.();
     if (playerControl && hero.blocking && !facingAttacker) {
       showBanner("HIT FROM BEHIND!", "#ef4444", "#ffffff", 0.78);
     }
     if (hp <= 0) {
       koTimer = 1.9;
-      spawnSparks(hero.x, hero.z, [1.0, 0.22, 0.18], 24);
+      spawnSparks(hero.x, hero.z, [1.0, 0.22, 0.18], 20);
       showBanner("K.O.! (0 HP)", "#ef4444", "#ffffff", 1.7);
     }
   }
 
   function update(dt, keys = new Set(), pointer = {}) {
-    const rawH = Math.min(0.05, Math.max(0.001, dt));
-    shakeMag = Math.max(0, shakeMag - rawH * 1.9);
+    const rawH = Math.min(0.04, Math.max(0.001, dt));
+    shakeMag *= Math.exp(-9.5 * rawH);
+    shakePhase += rawH * 38.0;
 
-    // Tactile Hitstop freeze-frame on heavy sword hits & Perfect Parries!
-    if (hitstopTimer > 0) {
-      hitstopTimer = Math.max(0, hitstopTimer - rawH);
-      return;
+    // Smooth brief slow-mo instead of abrupt freeze!
+    let timeScale = 1.0;
+    if (slowMoTimer > 0) {
+      slowMoTimer = Math.max(0, slowMoTimer - rawH);
+      timeScale = 0.35;
     }
 
-    const h = rawH;
+    const h = rawH * timeScale;
     time += h;
     hero.hitFlash = Math.max(0, hero.hitFlash - h * 2.4);
     hero.slashTimer = Math.max(0, hero.slashTimer - h);
@@ -340,7 +354,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     hero.comboResetTimer = Math.max(0, hero.comboResetTimer - h);
     hero.dodgeCooldown = Math.max(0, hero.dodgeCooldown - h);
     if (bannerMsg) {
-      bannerMsg.timer -= h;
+      bannerMsg.timer -= rawH;
       if (bannerMsg.timer <= 0) bannerMsg = null;
     }
 
@@ -348,7 +362,6 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     const dn = keys.has("KeyS") || keys.has("ArrowDown");
     const lt = keys.has("KeyA") || keys.has("ArrowLeft");
     const rt = keys.has("KeyD") || keys.has("ArrowRight");
-    // Space / Left-Click / J = Sword Slash! Right-Click / E / K / F = Shield Block & Parry! Shift = Dodge!
     const blockKey = keys.has("KeyE") || keys.has("KeyK") || keys.has("KeyF") || rightMouseBlock;
     const dodgeKey = keys.has("ShiftLeft") || keys.has("ShiftRight");
 
@@ -358,82 +371,94 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       requestHudRefresh?.();
     }
 
-    const prevHeroX = hero.x, prevHeroZ = hero.z;
-    const prevGuardPos = guards.map(g => [g.x, g.z]);
-
     if (dodgeKey && hero.dodgeCooldown <= 0 && hero.dodgeTimer <= 0 && koTimer <= 0) {
       performDodge(keys);
     }
 
     if (koTimer > 0) {
       koTimer -= h;
-      hero.tilt = Math.min(1.45, hero.tilt + h * 6);
+      hero.vx *= Math.exp(-8 * h);
+      hero.vz *= Math.exp(-8 * h);
+      hero.tilt = Math.min(1.45, hero.tilt + h * 5.2);
       hero.slashProg = 0;
       if (koTimer <= 0) reset(playerControl);
     } else if (playerControl) {
       if (hero.dodgeTimer > 0) {
         hero.dodgeTimer = Math.max(0, hero.dodgeTimer - h);
         const u = 1 - hero.dodgeTimer / 0.28;
-        hero.x = Math.max(-4.9, Math.min(4.9, hero.x + hero.dodgeDx * 11.5 * h));
-        hero.z = Math.max(-5.4, Math.min(5.4, hero.z + hero.dodgeDz * 11.5 * h));
-        hero.y = Math.sin(u * Math.PI) * 0.45;
-        hero.tilt = Math.sin(u * Math.PI) * 0.45;
+        hero.vx *= Math.exp(-3.5 * h);
+        hero.vz *= Math.exp(-3.5 * h);
+        hero.x = Math.max(-4.9, Math.min(4.9, hero.x + hero.vx * h));
+        hero.z = Math.max(-5.4, Math.min(5.4, hero.z + hero.vz * h));
+        hero.y = Math.sin(u * Math.PI) * 0.16;
+        hero.tilt = Math.sin(u * Math.PI) * 0.26;
+        hero.yaw += angleDiff(Math.atan2(hero.dodgeDx, hero.dodgeDz), hero.yaw) * Math.min(1, h * 14);
         hero.blocking = false;
         hero.slashProg = 0;
       } else {
-        hero.y = 0;
-        hero.tilt *= Math.max(0, 1 - h * 10);
+        hero.y *= Math.exp(-14 * h);
+        hero.tilt *= Math.exp(-10 * h);
 
         const wasBlocking = hero.blocking;
         hero.blocking = blockKey && hero.slashTimer <= 0.04;
         if (hero.blocking && !wasBlocking) hero.blockStartTime = time;
 
+        // Smooth velocity-driven Knight locomotion (silky acceleration & stop!)
         let mx = (rt ? 1 : 0) - (lt ? 1 : 0);
         let mz = (dn ? 1 : 0) - (up ? 1 : 0);
         const ml = Math.hypot(mx, mz);
-        const spd = hero.blocking ? 2.7 : 5.4;
-        if (ml > 0.01) {
-          mx /= ml; mz /= ml;
-          hero.x = Math.max(-4.9, Math.min(4.9, hero.x + mx * spd * h));
-          hero.z = Math.max(-5.4, Math.min(5.4, hero.z + mz * spd * h));
-          if (hero.slashTimer <= 0) {
-            hero.yaw += angleDiff(Math.atan2(mx, mz), hero.yaw) * Math.min(1, h * 12);
-          }
+        const maxSpd = hero.blocking ? 2.8 : 5.2;
+        const tvx = ml > 0.01 ? (mx / ml) * maxSpd : 0;
+        const tvz = ml > 0.01 ? (mz / ml) * maxSpd : 0;
+        const accelBlend = 1 - Math.exp(-(ml > 0.01 ? 11.5 : 10.0) * h);
+        hero.vx += (tvx - hero.vx) * accelBlend;
+        hero.vz += (tvz - hero.vz) * accelBlend;
+
+        hero.x = Math.max(-4.9, Math.min(4.9, hero.x + hero.vx * h));
+        hero.z = Math.max(-5.4, Math.min(5.4, hero.z + hero.vz * h));
+
+        if (ml > 0.01 && hero.slashTimer <= 0) {
+          hero.yaw += angleDiff(Math.atan2(mx, mz), hero.yaw) * (1 - Math.exp(-10.0 * h));
         } else if (pointer?.world && hero.slashTimer <= 0) {
           const dx = pointer.world[0] - hero.x, dz = pointer.world[2] - hero.z;
-          if (Math.hypot(dx, dz) > 0.4) {
-            hero.yaw += angleDiff(Math.atan2(dx, dz), hero.yaw) * Math.min(1, h * 10);
+          if (Math.hypot(dx, dz) > 0.5) {
+            hero.yaw += angleDiff(Math.atan2(dx, dz), hero.yaw) * (1 - Math.exp(-8.5 * h));
           }
         }
 
-        hero.shieldPitch = hero.blocking ? 1.12 : 0.22;
+        const targetShield = hero.blocking ? 1.08 : 0.22;
+        hero.shieldPitch += (targetShield - hero.shieldPitch) * (1 - Math.exp(-14 * h));
+
         if (hero.slashTimer > 0) {
-          const u = 1 - hero.slashTimer / hero.slashDur;
+          const u = smoothstep01(1 - hero.slashTimer / hero.slashDur);
           const dir = hero.comboStep === 1 ? -1 : 1;
           hero.swordPitch = hero.comboStep === 2
-            ? (-1.45 + Math.sin(u * Math.PI) * 2.95)
-            : (-0.95 + Math.sin(u * Math.PI) * 2.35);
-          hero.torsoYaw = (-0.65 + u * 1.35) * dir;
+            ? (-1.35 + Math.sin(u * Math.PI) * 2.80)
+            : (-0.85 + Math.sin(u * Math.PI) * 2.20);
+          hero.torsoYaw = (-0.58 + u * 1.22) * dir;
           hero.slashProg = u;
         } else {
-          hero.swordPitch = hero.blocking ? -0.35 : Math.sin(time * 3.5) * 0.1;
-          hero.torsoYaw *= Math.max(0, 1 - h * 10);
+          const restSword = hero.blocking ? -0.32 : Math.sin(time * 3.0) * 0.08;
+          hero.swordPitch += (restSword - hero.swordPitch) * (1 - Math.exp(-12 * h));
+          hero.torsoYaw *= Math.exp(-10 * h);
           hero.slashProg = 0;
         }
       }
 
       if (tokenCount > 0 && hp < 100) hp = Math.min(100, hp + h * 1.4);
     } else {
-      hero.tilt *= Math.max(0, 1 - h * 8);
+      hero.tilt *= Math.exp(-8 * h);
       hero.blocking = false;
       hero.slashProg = 0;
     }
 
     if (flyOrb) {
-      flyOrb.t += h * 2.2;
+      flyOrb.t += h * 2.0;
       if (flyOrb.t >= 1) flyOrb = null;
     }
 
+    // Smooth Velocity-Steered Skeleton Warriors (zero snappy jumps or jitter!)
+    const smoothTurn = 1 - Math.exp(-8.5 * h);
     if (tokenCount === 0) {
       for (const g of guards) {
         g.hasToken = false;
@@ -441,66 +466,72 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         g.telegraphing = false;
         g.stunTimer = Math.max(0, g.stunTimer - h);
         g.hitFlash = Math.max(0, g.hitFlash - h * 3);
-        g.x += g.knockVx * h; g.z += g.knockVz * h;
-        g.knockVx *= Math.max(0, 1 - h * 8); g.knockVz *= Math.max(0, 1 - h * 8);
 
-        const ang = g.baseAngle + time * 0.45;
-        const targetX = hero.x + Math.sin(ang) * 1.45;
-        const targetZ = hero.z + Math.cos(ang) * 1.45;
+        const ang = g.baseAngle + time * 0.42;
+        const targetX = hero.x + Math.sin(ang) * 1.50;
+        const targetZ = hero.z + Math.cos(ang) * 1.50;
+        let dvx = 0, dvz = 0;
         if (g.stunTimer <= 0 && koTimer <= 0) {
           const dx = targetX - g.x, dz = targetZ - g.z;
           const d = Math.hypot(dx, dz);
-          if (d > 0.1) {
-            const step = Math.min(d, 3.8 * h);
-            g.x += (dx / d) * step;
-            g.z += (dz / d) * step;
+          if (d > 0.15) {
+            const sp = Math.min(3.6, d * 2.4);
+            dvx = (dx / d) * sp; dvz = (dz / d) * sp;
           }
-          g.yaw = Math.atan2(hero.x - g.x, hero.z - g.z);
-          if (Math.hypot(hero.x - g.x, hero.z - g.z) < 2.05) {
+          g.yaw += angleDiff(Math.atan2(hero.x - g.x, hero.z - g.z), g.yaw) * smoothTurn;
+          g.tilt *= Math.exp(-10 * h);
+
+          if (Math.hypot(hero.x - g.x, hero.z - g.z) < 2.15) {
             g.attackTimer += h;
-            const cyc = (g.attackTimer + g.phase * 0.22) % 1.05;
-            if (cyc < 0.45) {
-              g.swordPitch = -1.1 * (cyc / 0.45);
-              g.telegraphing = cyc > 0.20;
+            const cyc = (g.attackTimer + g.phase * 0.22) % 1.15;
+            if (cyc < 0.50) {
+              const u = smoothstep01(cyc / 0.50);
+              g.swordPitch += (-1.15 * u - g.swordPitch) * (1 - Math.exp(-12 * h));
+              g.telegraphing = cyc > 0.22;
               g.slashProg = 0;
               g.dealtHitThisSwing = false;
-            } else if (cyc < 0.75) {
-              const u = (cyc - 0.45) / 0.30;
-              g.swordPitch = -1.1 + u * 2.35;
+            } else if (cyc < 0.82) {
+              const u = smoothstep01((cyc - 0.50) / 0.32);
+              g.swordPitch = -1.15 + u * 2.40;
               g.slashProg = u;
               if (u > 0.45 && !g.dealtHitThisSwing) {
                 g.dealtHitThisSwing = true;
                 applyEnemyHitToHero(g);
               }
             } else {
-              g.swordPitch *= Math.max(0, 1 - h * 10);
+              g.swordPitch *= Math.exp(-8 * h);
               g.slashProg = 0;
             }
           } else {
+            g.swordPitch *= Math.exp(-8 * h);
             g.slashProg = 0;
           }
         } else {
-          g.tilt = g.stunTimer > 0 ? Math.sin(time * 28) * 0.22 : 0;
+          g.tilt += (Math.sin(time * 12 + g.id) * 0.14 - g.tilt) * (1 - Math.exp(-10 * h));
           g.slashProg = 0;
         }
-        g.x = Math.max(-5.2, Math.min(5.2, g.x));
-        g.z = Math.max(-5.8, Math.min(5.8, g.z));
+        g.vx += (dvx - g.vx) * (1 - Math.exp(-6.5 * h));
+        g.vz += (dvz - g.vz) * (1 - Math.exp(-6.5 * h));
+        g.x = Math.max(-5.2, Math.min(5.2, g.x + g.vx * h));
+        g.z = Math.max(-5.8, Math.min(5.8, g.z + g.vz * h));
       }
       if (!playerControl && koTimer <= 0) {
-        hero.yaw = Math.sin(time * 7) * 1.4;
-        hero.shieldPitch = 0.65;
+        hero.yaw += angleDiff(Math.sin(time * 4.5) * 1.2, hero.yaw) * smoothTurn;
+        hero.shieldPitch += (0.65 - hero.shieldPitch) * smoothTurn;
       }
     } else {
-      const TURN_DUR = 2.75;
+      const TURN_DUR = 2.85;
       turnTimer += h;
       if (turnTimer >= TURN_DUR) passTokenFrom(activeIds[0] ?? 0);
 
       if (!playerControl) {
         const primary = guards[activeIds[0] ?? 0];
-        hero.yaw += angleDiff(Math.atan2(primary.x - hero.x, primary.z - hero.z), hero.yaw) * Math.min(1, h * 7);
+        hero.yaw += angleDiff(Math.atan2(primary.x - hero.x, primary.z - hero.z), hero.yaw) * (1 - Math.exp(-7 * h));
         const cyc = turnTimer / TURN_DUR;
-        hero.shieldPitch = (cyc > 0.40 && cyc < 0.68) ? 0.92 : 0.20;
-        hero.swordPitch = (cyc > 0.65 && cyc < 0.90) ? Math.sin(((cyc - 0.65) / 0.25) * Math.PI) * 1.25 : -0.1;
+        const tSh = (cyc > 0.40 && cyc < 0.68) ? 0.92 : 0.20;
+        hero.shieldPitch += (tSh - hero.shieldPitch) * (1 - Math.exp(-10 * h));
+        const tSw = (cyc > 0.65 && cyc < 0.90) ? Math.sin(((cyc - 0.65) / 0.25) * Math.PI) * 1.2 : -0.1;
+        hero.swordPitch += (tSw - hero.swordPitch) * (1 - Math.exp(-10 * h));
       }
 
       for (const g of guards) {
@@ -510,73 +541,77 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         g.telegraphing = false;
         g.stunTimer = Math.max(0, g.stunTimer - h);
         g.hitFlash = Math.max(0, g.hitFlash - h * 3);
-        g.x += g.knockVx * h; g.z += g.knockVz * h;
-        g.knockVx *= Math.max(0, 1 - h * 8); g.knockVz *= Math.max(0, 1 - h * 8);
 
-        const ang = g.baseAngle + time * 0.30;
-        const targetR = isAct ? 1.80 : 4.25;
+        const ang = g.baseAngle + time * 0.28;
+        const targetR = isAct ? 1.85 : 4.25;
         const tx = Math.max(-5.1, Math.min(5.1, hero.x + Math.sin(ang) * targetR));
         const tz = Math.max(-5.6, Math.min(5.6, hero.z + Math.cos(ang) * targetR));
+        let dvx = 0, dvz = 0;
+
         if (g.stunTimer <= 0 && koTimer <= 0) {
-          g.tilt *= Math.max(0, 1 - h * 10);
+          g.tilt *= Math.exp(-10 * h);
           const dx = tx - g.x, dz = tz - g.z;
           const d = Math.hypot(dx, dz);
-          const spd = isAct ? 4.4 : 3.4;
-          if (d > 0.08) {
-            const step = Math.min(d, spd * h);
-            g.x += (dx / d) * step;
-            g.z += (dz / d) * step;
+          const maxSp = isAct ? 4.0 : 3.0;
+          if (d > 0.12) {
+            const sp = Math.min(maxSp, d * 2.6);
+            dvx = (dx / d) * sp; dvz = (dz / d) * sp;
           }
-          g.yaw = Math.atan2(hero.x - g.x, hero.z - g.z);
+          g.yaw += angleDiff(Math.atan2(hero.x - g.x, hero.z - g.z), g.yaw) * smoothTurn;
 
-          if (isAct && Math.hypot(hero.x - g.x, hero.z - g.z) < 2.40) {
+          if (isAct && Math.hypot(hero.x - g.x, hero.z - g.z) < 2.45) {
             g.attackTimer += h;
-            const u = g.attackTimer / 1.20;
+            const u = g.attackTimer / 1.25;
             if (u < 0.50) {
-              g.swordPitch = -1.30 * (u / 0.50);
-              g.torsoYaw = -0.45 * (u / 0.50);
+              const e = smoothstep01(u / 0.50);
+              g.swordPitch += (-1.28 * e - g.swordPitch) * (1 - Math.exp(-12 * h));
+              g.torsoYaw += (-0.42 * e - g.torsoYaw) * (1 - Math.exp(-12 * h));
               g.telegraphing = u > 0.18;
               g.slashProg = 0;
             } else if (u < 0.80) {
-              const s = (u - 0.50) / 0.30;
-              g.swordPitch = -1.30 + s * 2.65;
-              g.torsoYaw = -0.45 + s * 1.05;
+              const s = smoothstep01((u - 0.50) / 0.30);
+              g.swordPitch = -1.28 + s * 2.55;
+              g.torsoYaw = -0.42 + s * 0.98;
               g.slashProg = s;
               if (s > 0.42 && !g.dealtHitThisSwing) {
                 g.dealtHitThisSwing = true;
                 if (playerControl) applyEnemyHitToHero(g);
-                else spawnSparks((hero.x + g.x) * 0.5, (hero.z + g.z) * 0.5, [1.0, 0.85, 0.25], 10);
+                else spawnSparks((hero.x + g.x) * 0.5, (hero.z + g.z) * 0.5, [1.0, 0.85, 0.25], 8);
               }
             } else {
-              g.swordPitch *= Math.max(0, 1 - h * 8);
-              g.torsoYaw *= Math.max(0, 1 - h * 8);
+              g.swordPitch *= Math.exp(-8 * h);
+              g.torsoYaw *= Math.exp(-8 * h);
               g.slashProg = 0;
               if (u >= 1.18) { g.attackTimer = 0; g.dealtHitThisSwing = false; }
             }
           } else {
-            g.swordPitch = Math.sin(time * 2.5 + g.phase) * 0.12;
-            g.torsoYaw = Math.sin(time * 1.8 + g.phase) * 0.10;
+            const idleSw = Math.sin(time * 2.2 + g.phase) * 0.10;
+            g.swordPitch += (idleSw - g.swordPitch) * (1 - Math.exp(-8 * h));
+            g.torsoYaw *= Math.exp(-8 * h);
             g.slashProg = 0;
           }
         } else {
-          g.tilt = g.stunTimer > 0 ? Math.sin(time * 26) * 0.24 : 0;
+          g.tilt += (Math.sin(time * 12 + g.id) * 0.14 - g.tilt) * (1 - Math.exp(-10 * h));
           g.slashProg = 0;
         }
+        g.vx += (dvx - g.vx) * (1 - Math.exp(-6.5 * h));
+        g.vz += (dvz - g.vz) * (1 - Math.exp(-6.5 * h));
+        g.x = Math.max(-5.2, Math.min(5.2, g.x + g.vx * h));
+        g.z = Math.max(-5.8, Math.min(5.8, g.z + g.vz * h));
       }
     }
 
-    // Drive crisp leg-swing walk cycles from real frame-to-frame ground speed!
-    const heroSpeed = Math.hypot(hero.x - prevHeroX, hero.z - prevHeroZ) / Math.max(0.001, h);
-    const targetHeroWalk = (koTimer <= 0 && hero.dodgeTimer <= 0 && heroSpeed > 0.35) ? Math.min(1, heroSpeed / 4.2) : 0;
-    hero.walkAmp += (targetHeroWalk - hero.walkAmp) * Math.min(1, h * 12);
-    if (hero.walkAmp > 0.02) hero.walkPhase += h * (5.5 + heroSpeed * 1.45);
+    // Smooth, natural stride cycle proportional to actual velocity!
+    const heroSpd = Math.hypot(hero.vx, hero.vz);
+    const targetHeroWalk = (koTimer <= 0 && hero.dodgeTimer <= 0 && heroSpd > 0.30) ? Math.min(1, heroSpd / 4.5) : 0;
+    hero.walkAmp += (targetHeroWalk - hero.walkAmp) * (1 - Math.exp(-10 * h));
+    if (hero.walkAmp > 0.02) hero.walkPhase += h * (3.6 + heroSpd * 1.15);
 
-    for (let i = 0; i < guards.length; i++) {
-      const g = guards[i];
-      const gs = Math.hypot(g.x - prevGuardPos[i][0], g.z - prevGuardPos[i][1]) / Math.max(0.001, h);
-      const targetGW = (g.stunTimer <= 0 && gs > 0.25) ? Math.min(1, gs / 3.2) : 0;
-      g.walkAmp += (targetGW - g.walkAmp) * Math.min(1, h * 10);
-      if (g.walkAmp > 0.02) g.walkPhase += h * (5.0 + gs * 1.65);
+    for (const g of guards) {
+      const gs = Math.hypot(g.vx, g.vz);
+      const targetGW = (g.stunTimer <= 0 && gs > 0.25) ? Math.min(1, gs / 3.4) : 0;
+      g.walkAmp += (targetGW - g.walkAmp) * (1 - Math.exp(-8 * h));
+      if (g.walkAmp > 0.02) g.walkPhase += h * (3.4 + gs * 1.25);
     }
 
     for (let i = sparks.length - 1; i >= 0; i--) {
@@ -589,11 +624,12 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
   }
 
   function getCameraOverride(baseCam) {
-    if (shakeMag <= 0.005) return null;
+    if (shakeMag <= 0.002) return null;
+    // Silky damped sinusoidal micro-impulse (ZERO white-noise jitter!)
     return {
-      targetX: baseCam.targetX + (Math.random() - 0.5) * shakeMag,
-      targetY: baseCam.targetY + (Math.random() - 0.5) * shakeMag * 0.6,
-      targetZ: baseCam.targetZ + (Math.random() - 0.5) * shakeMag,
+      targetX: baseCam.targetX + Math.sin(shakePhase) * shakeMag,
+      targetY: baseCam.targetY + Math.cos(shakePhase * 1.3) * shakeMag * 0.45,
+      targetZ: baseCam.targetZ + Math.cos(shakePhase * 0.9) * shakeMag * 0.7,
     };
   }
 
@@ -601,7 +637,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     let tokenOrb = null;
     if (flyOrb) {
       const a = guards[flyOrb.fromId], b = guards[flyOrb.toId];
-      const u = flyOrb.t;
+      const u = smoothstep01(flyOrb.t);
       tokenOrb = {
         x: a.x + (b.x - a.x) * u,
         y: 2.2 + Math.sin(u * Math.PI) * 2.4,
@@ -639,7 +675,6 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       }
 
       for (const g of guards) {
-        // Show damaged skeleton HP pips cleanly above their head!
         if (g.hp < g.maxHp) {
           const pHp = project3D([g.x, 2.10, g.z], viewProj, ow, oh);
           if (pHp) drawHpPips(ovCtx, pHp.x, pHp.y, g.hp, g.maxHp);
@@ -649,7 +684,6 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         if (g.stunTimer > 0.25) {
           drawBadge(ovCtx, pg.x, pg.y, "STUNNED!", "#00e4ac", "#041c14", ow);
         } else if (g.telegraphing) {
-          // Unmistakable parry timing glint!
           drawBadge(ovCtx, pg.x, pg.y, "! PARRY NOW !", "#ef4444", "#ffffff", ow);
         } else if (tokenCount > 0) {
           if (g.hasToken) drawBadge(ovCtx, pg.x, pg.y, "TOKEN", "#f59e0b", "#1c1204", ow);
@@ -703,7 +737,18 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       if (button === 0) performHeroSlash(worldPt);
     },
     getDebugState() {
-      return { playerControl, x: +hero.x.toFixed(2), z: +hero.z.toFixed(2), hp: Math.round(hp), kills, parries, comboStep: hero.comboStep, tokenCount };
+      return {
+        playerControl,
+        x: +hero.x.toFixed(2),
+        z: +hero.z.toFixed(2),
+        vx: +hero.vx.toFixed(2),
+        vz: +hero.vz.toFixed(2),
+        hp: Math.round(hp),
+        kills,
+        parries,
+        comboStep: hero.comboStep,
+        tokenCount,
+      };
     },
     reset: () => reset(false),
     update,
