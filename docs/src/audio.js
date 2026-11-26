@@ -211,6 +211,16 @@ export function createAudioEngine() {
       playTone(135, 38, 0.24, 0.28, "triangle");
       playNoise(0.28, 420, 1.4, 0.20, "lowpass");
     },
+    carBump() {
+      if (!ensureContext()) return;
+      playTone(175, 72, 0.12, 0.22, "sawtooth");
+      playNoise(0.09, 850, 1.6, 0.14, "bandpass");
+    },
+    wallScrape() {
+      if (!ensureContext()) return;
+      playNoise(0.08, 1250, 2.2, 0.09, "bandpass");
+      playTone(120, 82, 0.09, 0.10, "triangle");
+    },
     nitro() {
       if (!ensureContext()) return;
       playNoise(0.22, 1600, 1.8, 0.11, "bandpass");

@@ -483,10 +483,16 @@ function pushSlashArc(out, gx, gy, gz, facingYaw, slashProg, r, g, b) {
 
 // Append one articulated Blender fighter (10 floats/vert: pos3, norm3, col3, rough1)
 function appendArticulatedFighter(verts, indices, pack, opts) {
-  const { x, y, z, yaw, scale, breath, torsoYaw, headYaw, shieldPitch, swordPitch, tilt, emColor, tintCol, tintMix } = opts;
+  const {
+    x, y, z, yaw, scale, breath, torsoYaw, headYaw, shieldPitch, swordPitch, tilt,
+    walkPhase = 0, walkAmp = 0, emColor, tintCol, tintMix,
+  } = opts;
   const baseV = verts.length / 10;
   const cy = Math.cos(yaw), sy = Math.sin(yaw);
   const ct = Math.cos(tilt), st = Math.sin(tilt);
+  const walkBob = Math.abs(Math.sin(walkPhase)) * 0.075 * walkAmp;
+  const legAngL = Math.sin(walkPhase) * 0.68 * walkAmp;
+  const legAngR = -legAngL;
   const { count, pos, norm, col, part, rough, idx } = pack;
 
   for (let i = 0; i < count; i++) {
@@ -498,34 +504,47 @@ function appendArticulatedFighter(verts, indices, pack, opts) {
     let nz = norm[i * 3 + 2];
     const p = part[i];
 
-    if (p === 1) {
-      ly += breath;
-      const ca = Math.cos(torsoYaw), sa = Math.sin(torsoYaw);
+    if (p === 0 && walkAmp > 0.01) {
+      // Articulated left/right leg stride swinging cleanly around the hip pivot!
+      const py = 0.62;
+      const ang = lx < 0 ? legAngL : legAngR;
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      const ry = ly - py, rz = lz;
+      ly = py + ry * ca - rz * sa + walkBob * 0.45;
+      lz = ry * sa + rz * ca;
+      const rny = ny * ca - nz * sa, rnz = ny * sa + nz * ca;
+      ny = rny; nz = rnz;
+    } else if (p === 1) {
+      ly += breath + walkBob;
+      const effTorsoYaw = torsoYaw + Math.sin(walkPhase) * 0.14 * walkAmp;
+      const ca = Math.cos(effTorsoYaw), sa = Math.sin(effTorsoYaw);
       const tx = lx * ca + lz * sa, tz = -lx * sa + lz * ca;
       const tnx = nx * ca + nz * sa, tnz = -nx * sa + nz * ca;
       lx = tx; lz = tz; nx = tnx; nz = tnz;
     } else if (p === 2) {
-      ly += breath * 1.1;
+      ly += breath * 1.1 + walkBob;
       const ca = Math.cos(headYaw), sa = Math.sin(headYaw);
       const tx = lx * ca + lz * sa, tz = -lx * sa + lz * ca;
       const tnx = nx * ca + nz * sa, tnz = -nx * sa + nz * ca;
       lx = tx; lz = tz; nx = tnx; nz = tnz;
     } else if (p === 3) {
-      // Shield arm pivot
+      // Shield arm pivot (subtle counter-swing while walking!)
       const px = 0.24, py = 1.00, pz = 0.0;
       const rx = lx - px, ry = ly - py, rz = lz - pz;
-      const ca = Math.cos(shieldPitch), sa = Math.sin(shieldPitch);
-      ly = py + ry * ca - rz * sa + breath;
+      const effP = shieldPitch - Math.sin(walkPhase) * 0.24 * walkAmp;
+      const ca = Math.cos(effP), sa = Math.sin(effP);
+      ly = py + ry * ca - rz * sa + breath + walkBob;
       lz = pz + ry * sa + rz * ca;
       lx = px + rx;
       const rny = ny * ca - nz * sa, rnz = ny * sa + nz * ca;
       ny = rny; nz = rnz;
     } else if (p === 4) {
-      // Weapon sword arm pivot
+      // Weapon sword arm pivot (subtle counter-swing while walking!)
       const px = -0.24, py = 1.00, pz = 0.0;
       const rx = lx - px, ry = ly - py, rz = lz - pz;
-      const ca = Math.cos(swordPitch), sa = Math.sin(swordPitch);
-      ly = py + ry * ca - rz * sa + breath;
+      const effP = swordPitch + Math.sin(walkPhase) * 0.28 * walkAmp;
+      const ca = Math.cos(effP), sa = Math.sin(effP);
+      ly = py + ry * ca - rz * sa + breath + walkBob;
       lz = pz + ry * sa + rz * ca;
       lx = px + rx;
       const rny = ny * ca - nz * sa, rnz = ny * sa + nz * ca;
@@ -713,6 +732,8 @@ export function createArenaRenderer(gl) {
       shieldPitch: hero.shieldPitch ?? 0.15,
       swordPitch: hero.swordPitch ?? 0.0,
       tilt: hero.tilt ?? 0,
+      walkPhase: hero.walkPhase ?? 0,
+      walkAmp: hero.walkAmp ?? 0,
       emColor: hero.hitFlash > 0.2 ? [2.1, 0.32, 0.25] : [0.28, 1.85, 1.50], // Enchanted emerald-cyan rune blade!
       tintCol: [0.80, 0.10, 0.10],
       tintMix: hero.hitFlash * 0.34,
@@ -740,6 +761,8 @@ export function createArenaRenderer(gl) {
         shieldPitch: g.shieldPitch ?? 0.05,
         swordPitch: g.swordPitch ?? 0.0,
         tilt: g.tilt ?? 0,
+        walkPhase: g.walkPhase ?? 0,
+        walkAmp: g.walkAmp ?? 0,
         emColor,
         tintCol,
         tintMix,

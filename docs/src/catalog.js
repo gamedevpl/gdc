@@ -20,12 +20,12 @@ export const CODEX_ENTRIES = [
       pl: "Przejedź tor GP z kamerą Follow-Cam i poczuj, jak gumka rozciąga tempo AI.",
     },
     note: {
-      en: "Drive with WASD / Arrows and Space for Nitro. Camera follows your car automatically (C toggles Overview). Pull ahead and rivals boost onto your bumper; toggle Rubber Band OFF to feel the gap explode.",
-      pl: "Jedź WASD / Strzałkami, Spacja = Nitro. Kamera automatycznie podąża za autem (C przełącza widok całego toru). Ucieknij albo wjedź w bandę i sprawdź różnicę z Gumką WŁ vs WYŁ.",
+      en: "Drive the 3D Figure-8 overpass circuit with WASD / Arrows and Space for Nitro (C toggles Follow vs Overview). Stay on the dark tarmac — grinding barriers slows you down, and cars collide cleanly on the same bridge level.",
+      pl: "Jedź po 3D ósemce z wiaduktem (WASD / Strzałki, Spacja = Nitro, C = kamera Follow/Ósemka). Trzymaj się asfaltu — ocieranie o bandy wyraźnie hamuje, a na tym samym poziomie zderzasz się z rywalami.",
     },
     hint: {
-      en: "WASD / Arrows = Drive · Space = Nitro · C = Follow/Track Cam · X = Spinout · M/B = Audio",
-      pl: "WASD / Strzałki = Jazda · Spacja = Nitro · C = Kamera Follow/Tor · X = Poślizg · M/B = Dźwięk",
+      en: "WASD / Arrows = Drive · Space = Nitro · C = Follow/Figure-8 Cam · X = Spinout · M/B = Audio",
+      pl: "WASD / Strzałki = Jazda · Spacja = Nitro · C = Kamera Follow/Ósemka · X = Poślizg · M/B = Dźwięk",
     },
   },
   {
@@ -47,12 +47,12 @@ export const CODEX_ENTRIES = [
       pl: "Walcz z 5 szkieletami (3-ciosowe combo, parowanie, unik): fair z 1 tokenem, chaos bez tokenów.",
     },
     note: {
-      en: "Move with WASD, Left-Click / J for a 3-hit combo, hold Space / Right-Click when you see '! PARRY NOW !' for a Perfect Parry, and Shift to Dodge Roll. Try 1 Token vs Tokens OFF.",
-      pl: "Chodź WASD, LPM / J robi 3-ciosowe combo, Spacja / PPM przy błysku '! PARRY NOW !' daje Perfect Parry, a Shift robi unik. Porównaj 1 Token vs Bez tokenów.",
+      en: "Move with WASD, press Space or Left-Click for a 3-hit combo, hold Right-Click / E when you see '! PARRY NOW !' for a Perfect Parry, and Shift to Dodge Roll. Try 1 Token vs Tokens OFF.",
+      pl: "Chodź WASD, Spacja lub LPM robi 3-ciosowe combo, PPM / E przy błysku '! PARRY NOW !' daje Perfect Parry, a Shift robi unik. Porównaj 1 Token vs Bez tokenów.",
     },
     hint: {
-      en: "WASD = Move · Click / J = 3-Hit Combo · Space / Right-Click = Block & Parry · Shift = Dodge · M/B = Audio",
-      pl: "WASD = Ruch · LPM / J = 3-ciosowe Combo · Spacja / PPM = Blok/Parowanie · Shift = Unik · M/B = Dźwięk",
+      en: "WASD = Move · Space / Click = 3-Hit Combo · Right-Click / E = Block & Parry · Shift = Dodge · M/B = Audio",
+      pl: "WASD = Ruch · Spacja / LPM = 3-ciosowe Combo · PPM / E = Blok/Parowanie · Shift = Unik · M/B = Dźwięk",
     },
   },
   {

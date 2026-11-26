@@ -333,7 +333,7 @@ const GAME_KEYS = new Set([
   "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
   "KeyW", "KeyA", "KeyS", "KeyD",
   "Space", "ShiftLeft", "ShiftRight",
-  "KeyE", "KeyJ", "KeyK", "KeyX", "KeyC", "Enter",
+  "KeyE", "KeyF", "KeyJ", "KeyK", "KeyX", "KeyC", "Enter",
 ]);
 
 window.addEventListener("keydown", (e) => {

@@ -65,9 +65,9 @@ function drawCombatHud(ctx, ow, state, lang) {
 
   const lbl = state.playerControl
     ? (pl
-      ? `HP ${Math.round(state.hp)} · KO ${state.kills} · PARRY ${state.parries} · SHIFT = UNIK`
-      : `HP ${Math.round(state.hp)} · KOs ${state.kills} · PARRIES ${state.parries} · SHIFT = DODGE`)
-    : (pl ? `AUTO-DEMO · WALCZ: WASD + LPM + SPACJA` : `AUTO-DEMO · FIGHT: WASD + CLICK + SPACE`);
+      ? `HP ${Math.round(state.hp)} · KO ${state.kills} · PARRY ${state.parries} · SPACJA=CIĘCIE · PPM/E=BLOK`
+      : `HP ${Math.round(state.hp)} · KOs ${state.kills} · PARRIES ${state.parries} · SPACE=SLASH · E=BLOCK`)
+    : (pl ? `AUTO-DEMO · WALCZ: WASD + SPACJA/LPM + E/PPM` : `AUTO-DEMO · FIGHT: WASD + SPACE/CLICK + E/RMB`);
   ctx.font = "700 12px 'Courier New', monospace";
   ctx.fillStyle = state.playerControl ? "#76ddaf" : "#ffe1a2";
   ctx.textAlign = "left";
@@ -105,6 +105,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
   const hero = {
     x: 0, y: 0, z: 0, yaw: 0,
     torsoYaw: 0, headYaw: 0, shieldPitch: 0.18, swordPitch: 0, tilt: 0, hitFlash: 0,
+    walkPhase: 0, walkAmp: 0,
     slashTimer: 0, slashDur: 0.24, slashCooldown: 0, slashProg: 0,
     comboStep: 0, comboResetTimer: 0,
     dodgeTimer: 0, dodgeCooldown: 0, dodgeDx: 0, dodgeDz: 0,
@@ -117,6 +118,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     x: 0, y: 0, z: 0, yaw: 0,
     hasToken: false, danger: 0,
     torsoYaw: 0, shieldPitch: 0.1, swordPitch: 0, tilt: 0,
+    walkPhase: i * 1.1, walkAmp: 0,
     slashProg: 0, telegraphing: false,
     phase: i * 1.25,
     hp: 3, maxHp: 3, stunTimer: 0, hitFlash: 0,
@@ -346,7 +348,8 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     const dn = keys.has("KeyS") || keys.has("ArrowDown");
     const lt = keys.has("KeyA") || keys.has("ArrowLeft");
     const rt = keys.has("KeyD") || keys.has("ArrowRight");
-    const blockKey = keys.has("Space") || keys.has("KeyK") || rightMouseBlock;
+    // Space / Left-Click / J = Sword Slash! Right-Click / E / K / F = Shield Block & Parry! Shift = Dodge!
+    const blockKey = keys.has("KeyE") || keys.has("KeyK") || keys.has("KeyF") || rightMouseBlock;
     const dodgeKey = keys.has("ShiftLeft") || keys.has("ShiftRight");
 
     if (up || dn || lt || rt || blockKey || dodgeKey) playerControl = true;
@@ -354,6 +357,9 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       prevPlayerControl = playerControl;
       requestHudRefresh?.();
     }
+
+    const prevHeroX = hero.x, prevHeroZ = hero.z;
+    const prevGuardPos = guards.map(g => [g.x, g.z]);
 
     if (dodgeKey && hero.dodgeCooldown <= 0 && hero.dodgeTimer <= 0 && koTimer <= 0) {
       performDodge(keys);
@@ -559,6 +565,20 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       }
     }
 
+    // Drive crisp leg-swing walk cycles from real frame-to-frame ground speed!
+    const heroSpeed = Math.hypot(hero.x - prevHeroX, hero.z - prevHeroZ) / Math.max(0.001, h);
+    const targetHeroWalk = (koTimer <= 0 && hero.dodgeTimer <= 0 && heroSpeed > 0.35) ? Math.min(1, heroSpeed / 4.2) : 0;
+    hero.walkAmp += (targetHeroWalk - hero.walkAmp) * Math.min(1, h * 12);
+    if (hero.walkAmp > 0.02) hero.walkPhase += h * (5.5 + heroSpeed * 1.45);
+
+    for (let i = 0; i < guards.length; i++) {
+      const g = guards[i];
+      const gs = Math.hypot(g.x - prevGuardPos[i][0], g.z - prevGuardPos[i][1]) / Math.max(0.001, h);
+      const targetGW = (g.stunTimer <= 0 && gs > 0.25) ? Math.min(1, gs / 3.2) : 0;
+      g.walkAmp += (targetGW - g.walkAmp) * Math.min(1, h * 10);
+      if (g.walkAmp > 0.02) g.walkPhase += h * (5.0 + gs * 1.65);
+    }
+
     for (let i = sparks.length - 1; i >= 0; i--) {
       const s = sparks[i];
       s.x += s.vx * h; s.y += s.vy * h; s.z += s.vz * h;
@@ -656,7 +676,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         { id: "tok0", label: pl ? "Bez tokenów (Chaos)" : "Tokens: OFF (Chaos)", pressed: tokenCount === 0 },
         { id: "tok1", label: pl ? "1 Token (Fair)" : "1 Token (Fair)", pressed: tokenCount === 1 },
         { id: "tok2", label: pl ? "2 Tokeny (Hard)" : "2 Tokens (Hard)", pressed: tokenCount === 2 },
-        { id: "slash", label: pl ? "Combo (LPM / J)" : "Combo (Click / J)", pressed: false },
+        { id: "slash", label: pl ? "Combo (Spacja / LPM)" : "Combo (Space / Click)", pressed: false },
       ];
     },
     onAction(id) {
@@ -666,7 +686,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       if (id === "slash") performHeroSlash(null);
     },
     onKeyDown(code, repeat) {
-      if ((code === "KeyJ" || code === "KeyE" || code === "Enter") && !repeat) performHeroSlash(null);
+      if ((code === "Space" || code === "KeyJ" || code === "Enter") && !repeat) performHeroSlash(null);
     },
     onPointerDown({ button }) {
       if (button === 2) {
