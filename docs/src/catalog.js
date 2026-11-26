@@ -2,6 +2,33 @@
 
 export const CODEX_ENTRIES = [
   {
+    id: "coyote-time",
+    accent: "#2dd4bf",
+    category: "Platformer Feel",
+    thumb: "thumbs/coyote-time.jpg",
+    module: "./entries/coyote-time/index.js",
+    title: {
+      en: "Coyote Time & Buffering",
+      pl: "Coyote Time i Bufor Skoku",
+    },
+    kicker: {
+      en: "PLATFORMER FEEL · PLAYABLE MINI-GAME #04",
+      pl: "FEEL PLATFORMÓWEK · GRYWALNA MINI-GRA #04",
+    },
+    question: {
+      en: "Leap floating sky-islands and feel how 115ms invisible ledges & jump buffers make jumps feel fair.",
+      pl: "Skacz po latających wyspach 3D i poczuj, jak 115 ms niewidzialnej półki i bufor skoku ratują kontrolę.",
+    },
+    note: {
+      en: "Run across 6 floating islands with A/D (or Arrows) and jump with Space (hold for higher jumps). Switch between Forgiving (115 ms Coyote Ledge + 125 ms Jump Buffer) and Strict (0 ms) while watching the live millisecond timing bar.",
+      pl: "Biegnij po 6 latających wyspach (A/D lub Strzałki) i skacz Spacją (przytrzymaj dla wyższego skoku). Przełączaj tryb Fair (115 ms Coyote + 125 ms Bufor) vs Strict (0 ms) i patrz na licznik milisekund.",
+    },
+    hint: {
+      en: "A/D or Arrows = Run · Space / W / Click = Jump · T = Strict/Fair · C = Cam · M/B = Audio",
+      pl: "A/D lub Strzałki = Bieg · Spacja / W / LPM = Skok · T = Strict/Fair · C = Kamera · M/B = Dźwięk",
+    },
+  },
+  {
     id: "rubber-banding",
     accent: "#f59e0b",
     category: "Racing AI",

@@ -355,7 +355,7 @@ const GAME_KEYS = new Set([
   "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
   "KeyW", "KeyA", "KeyS", "KeyD",
   "Space", "ShiftLeft", "ShiftRight",
-  "KeyE", "KeyF", "KeyJ", "KeyK", "KeyX", "KeyC", "Enter",
+  "KeyE", "KeyF", "KeyJ", "KeyK", "KeyT", "KeyX", "KeyC", "Enter",
 ]);
 
 window.addEventListener("keydown", (e) => {
@@ -380,9 +380,10 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyR") {
     if (activeEntry) { activeEntry.reset(); applyEntryCam(activeEntry.defaultCam); renderHud(); }
   }
-  if (e.key === "1") loadEntry(CODEX_ENTRIES[0].id, true);
-  if (e.key === "2") loadEntry(CODEX_ENTRIES[1].id, true);
-  if (e.key === "3") loadEntry(CODEX_ENTRIES[2].id, true);
+  if (e.key >= "1" && e.key <= "9") {
+    const idx = parseInt(e.key, 10) - 1;
+    if (idx < CODEX_ENTRIES.length) loadEntry(CODEX_ENTRIES[idx].id, true);
+  }
 });
 
 window.addEventListener("keyup", (e) => {

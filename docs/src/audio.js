@@ -103,6 +103,12 @@ export function createAudioEngine() {
       lead: [523.25, 587.33, 659.25, 0, 783.99, 659.25, 587.33, 0, 440.0, 523.25, 659.25, 0, 587.33, 493.88, 392.0, 0],
       wave: "sine",
     },
+    "coyote-time": {
+      tempoMs: 140,
+      bass: [164.81, 0, 246.94, 0, 196.0, 0, 293.66, 0, 146.83, 0, 220.0, 0, 196.0, 220.0, 246.94, 0],
+      lead: [659.25, 0, 783.99, 880.0, 987.77, 0, 783.99, 659.25, 587.33, 0, 659.25, 783.99, 659.25, 587.33, 493.88, 0],
+      wave: "triangle",
+    },
   };
 
   function playMusicTone(freq, dur, vol, type = "triangle", detune = 0) {
@@ -296,6 +302,40 @@ export function createAudioEngine() {
       [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
         setTimeout(() => playTone(f, f, 0.34, 0.14, "triangle"), i * 75);
       });
+    },
+
+    // Platformer / Coyote Time SFX
+    jump() {
+      if (!ensureContext()) return;
+      playTone(280, 560, 0.14, 0.16, "triangle");
+    },
+    coyoteSave() {
+      if (!ensureContext()) return;
+      playTone(392.0, 783.99, 0.16, 0.19, "triangle");
+      setTimeout(() => playTone(783.99, 1046.5, 0.18, 0.14, "sine"), 45);
+    },
+    bufferLaunch() {
+      if (!ensureContext()) return;
+      playTone(440.0, 880.0, 0.15, 0.19, "triangle");
+      setTimeout(() => playTone(880.0, 1174.66, 0.18, 0.14, "sine"), 40);
+    },
+    inputIgnored() {
+      if (!ensureContext()) return;
+      playTone(170, 95, 0.14, 0.20, "sawtooth");
+    },
+    land() {
+      if (!ensureContext()) return;
+      playNoise(0.06, 520, 1.3, 0.10, "lowpass");
+      playTone(145, 82, 0.07, 0.09, "triangle");
+    },
+    coinPickup() {
+      if (!ensureContext()) return;
+      playTone(987.77, 987.77, 0.09, 0.14, "sine");
+      setTimeout(() => playTone(1318.51, 1318.51, 0.20, 0.14, "sine"), 65);
+    },
+    fallVoid() {
+      if (!ensureContext()) return;
+      playTone(320, 95, 0.34, 0.16, "triangle");
     },
   };
 }
