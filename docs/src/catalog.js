@@ -2,6 +2,33 @@
 
 export const CODEX_ENTRIES = [
   {
+    id: "hitstop",
+    accent: "#f97316",
+    category: "Combat Feel",
+    thumb: "thumbs/hitstop.jpg",
+    module: "./entries/hitstop/index.js",
+    title: {
+      en: "Hitstop & Game Juice",
+      pl: "Hitstop i Game Juice",
+    },
+    kicker: {
+      en: "COMBAT FEEL · PLAYABLE MINI-GAME #05",
+      pl: "FEEL WALKI · GRYWALNA MINI-GRA #05",
+    },
+    question: {
+      en: "Smash stone golems with a giant warhammer and feel why a 60 ms freeze makes hits 10× heavier.",
+      pl: "Rozbijaj kamienne golemy wielkim młotem i poczuj, czemu 60 ms zamrożenia daje 10× cięższe ciosy.",
+    },
+    note: {
+      en: "Stride around the forge with WASD and swing your Runed Warhammer with Space or Click (3rd hit = Overhead Anvil Crush!). Toggle Full Juice vs Raw (0 ms), cycle Hitstop (0 / 60 / 115 ms), and watch the live 60 FPS Frame Strip freeze in gold.",
+      pl: "Chodź po kuźni (WASD) i uderzaj wielkim młotem Spacją lub LPM (3. cios = ciężkie uderzenie znad głowy!). Przełączaj Full Juice vs Raw (0 ms), zmieniaj Hitstop (0 / 60 / 115 ms) i patrz na pasek klatek 60 FPS.",
+    },
+    hint: {
+      en: "WASD = Move · Space / Click = 3-Hit Hammer Combo · Shift = Dash Slam · T = Juice · H = Hitstop ms · K = Flash/Kick",
+      pl: "WASD = Ruch · Spacja / LPM = 3-ciosowe Combo · Shift = Doskok · T = Juice · H = Hitstop ms · K = Błysk/Odrzut",
+    },
+  },
+  {
     id: "coyote-time",
     accent: "#2dd4bf",
     category: "Platformer Feel",

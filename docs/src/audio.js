@@ -109,6 +109,12 @@ export function createAudioEngine() {
       lead: [659.25, 0, 783.99, 880.0, 987.77, 0, 783.99, 659.25, 587.33, 0, 659.25, 783.99, 659.25, 587.33, 493.88, 0],
       wave: "triangle",
     },
+    "hitstop": {
+      tempoMs: 165,
+      bass: [110.0, 0, 110.0, 0, 130.81, 0, 98.0, 0, 110.0, 0, 146.83, 0, 130.81, 0, 98.0, 82.41],
+      lead: [220.0, 0, 261.63, 293.66, 329.63, 0, 293.66, 0, 220.0, 0, 329.63, 392.0, 329.63, 293.66, 261.63, 0],
+      wave: "sawtooth",
+    },
   };
 
   function playMusicTone(freq, dur, vol, type = "triangle", detune = 0) {
@@ -336,6 +342,39 @@ export function createAudioEngine() {
     fallVoid() {
       if (!ensureContext()) return;
       playTone(320, 95, 0.34, 0.16, "triangle");
+    },
+
+    // Hitstop & Game Juice Forge Warhammer SFX (Raw dry tap vs Visceral Sub-Bass Anvil Crunch!)
+    hammerSwing(juicy = true) {
+      if (!ensureContext()) return;
+      if (!juicy) {
+        playNoise(0.08, 700, 1.0, 0.05, "bandpass");
+        return;
+      }
+      playNoise(0.18, 520, 1.5, 0.16, "bandpass");
+      playTone(210, 88, 0.16, 0.11, "triangle");
+    },
+    hammerImpact(juicy = true, heavy = false) {
+      if (!ensureContext()) return;
+      if (!juicy) {
+        // Deliberately flat wet-cardboard tap when Juice is OFF!
+        playTone(190, 130, 0.055, 0.07, "sine");
+        return;
+      }
+      // Visceral sub-bass slam + metallic anvil harmonic ring + stone crunch!
+      playTone(heavy ? 125 : 155, 34, heavy ? 0.32 : 0.22, heavy ? 0.34 : 0.26, "triangle");
+      playTone(heavy ? 880 : 1040, heavy ? 620 : 780, 0.19, heavy ? 0.15 : 0.10, "sine");
+      playNoise(heavy ? 0.22 : 0.14, 980, 1.3, heavy ? 0.24 : 0.18, "bandpass");
+    },
+    golemShatter(juicy = true) {
+      if (!ensureContext()) return;
+      if (!juicy) {
+        playTone(160, 90, 0.09, 0.08, "sine");
+        return;
+      }
+      playNoise(0.35, 620, 0.9, 0.24, "lowpass");
+      playTone(160, 38, 0.36, 0.26, "sawtooth");
+      setTimeout(() => playTone(660, 990, 0.28, 0.14, "sine"), 55);
     },
   };
 }
