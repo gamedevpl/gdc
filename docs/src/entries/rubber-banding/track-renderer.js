@@ -17,14 +17,14 @@ import {
 import { getCarMesh } from "../../car-mesh.js";
 
 const SHADOW_RES = 1024;
-export const TRACK_HW = 1.52;
+export const TRACK_HW = 1.92;
 
-// Smooth closed portrait-friendly GP circuit with gentle sweeping hairpins (zero curb self-overlap!).
+// Larger, exciting closed GP Stadium Circuit (~74 units/lap: long front straight, sweeping hairpins & east S-bend!).
 const RAW_SAMPLES = 512;
 function rawPoint(u) {
   const a = u * Math.PI * 2;
-  const x = 4.65 * Math.sin(a) + 0.48 * Math.sin(2 * a);
-  const z = 7.05 * Math.cos(a) + 0.35 * Math.cos(2 * a);
+  const x = 9.80 * Math.sin(a) + 1.15 * Math.sin(2 * a);
+  const z = 12.60 * Math.cos(a) + 0.75 * Math.cos(2 * a);
   return [x, z];
 }
 
@@ -91,14 +91,14 @@ function samplePosOnly(s) {
 // Start/finish line sits cleanly on the long west straight (s ≈ 0.74 * TRACK_LENGTH)
 export const START_S = TRACK_LENGTH * 0.74;
 
-// Stadium floodlight poles (6 warm-white stadium towers framing the circuit)
+// Stadium floodlight poles (6 tall warm-white towers framing the larger GP circuit)
 export const FLOODLIGHTS = [
-  [-7.2, 4.6, -5.8],
-  [ 7.4, 4.6, -5.8],
-  [-7.4, 4.6,  0.4],
-  [ 7.6, 4.6,  0.6],
-  [-7.2, 4.6,  6.4],
-  [ 7.4, 4.6,  6.4],
+  [-13.6, 6.2, -10.4],
+  [ 13.8, 6.2, -10.4],
+  [-14.2, 6.2,   0.4],
+  [ 14.4, 6.2,   0.6],
+  [-13.6, 6.2,  11.2],
+  [ 13.8, 6.2,  11.2],
 ];
 
 const SKY_FS = `#version 300 es
@@ -211,8 +211,8 @@ void main() {
     vec3 gB = vec3(0.088, 0.305, 0.128);
     base = mix(gA, gB, stripe) + vec3(grain * 0.4, grain, grain * 0.3);
     // Subtle dark diorama border fade near table rim
-    float edge = max(abs(vWorldPos.x) / 8.2, abs(vWorldPos.z) / 10.8);
-    base *= mix(1.0, 0.72, smoothstep(0.82, 1.0, edge));
+    float edge = max(abs(vWorldPos.x) / 15.6, abs(vWorldPos.z) / 18.2);
+    base *= mix(1.0, 0.72, smoothstep(0.84, 1.0, edge));
     rough = 0.92;
   } else if (m == 1) {
     // Crisp dark race tarmac: vUv.x = arc-length s, vUv.y = lateral [-1, 1]
@@ -530,23 +530,23 @@ function buildStadiumGeometry() {
     }
   }
 
-  // 1) Diorama base island (grass top at y=0, dark slate pedestal skirt strictly below y=-0.04 -> zero Z-fighting!)
-  const BW = 16.4, BD = 21.6;
-  pushBox(0, -0.46, 0, BW + 0.5, 0.84, BD + 0.5, 3);
+  // 1) Larger GP Stadium Diorama island (grass at y=0, slate pedestal strictly below y=-0.04)
+  const BW = 31.2, BD = 36.4;
+  pushBox(0, -0.52, 0, BW + 0.7, 0.96, BD + 0.7, 3);
   pushQuad([-BW * 0.5, 0, BD * 0.5], [BW * 0.5, 0, BD * 0.5], [BW * 0.5, 0, -BD * 0.5], [-BW * 0.5, 0, -BD * 0.5], [0, 1, 0], [0, 0], [1, 0], [1, 1], [0, 1], 0);
 
   // Subtle low diorama perimeter guard-wall
-  const wallH = 0.34, wallT = 0.28;
+  const wallH = 0.44, wallT = 0.36;
   pushBox(0, wallH * 0.5, -BD * 0.5, BW + wallT, wallH, wallT, 3);
   pushBox(0, wallH * 0.5,  BD * 0.5, BW + wallT, wallH, wallT, 3);
   pushBox(-BW * 0.5, wallH * 0.5, 0, wallT, wallH, BD + wallT, 3);
   pushBox( BW * 0.5, wallH * 0.5, 0, wallT, wallH, BD + wallT, 3);
 
   // 2) Smooth closed asphalt ribbon + raised red/white apex curbs on both sides!
-  const SEGS = 144;
+  const SEGS = 200;
   const roadY = 0.028;
-  const curbW = 0.28;
-  const curbY = 0.068;
+  const curbW = 0.34;
+  const curbY = 0.072;
   for (let i = 0; i < SEGS; i++) {
     const s0 = (i / SEGS) * TRACK_LENGTH;
     const s1 = ((i + 1) / SEGS) * TRACK_LENGTH;
@@ -608,42 +608,45 @@ function buildStadiumGeometry() {
     }
   }
 
-  // 4) Outer corner Tire Barrier stacks (iconic red/white GP corner walls)
+  // 4) Outer corner Tire Barrier stacks around hairpins & S-bend
   const barrierS = [
-    TRACK_LENGTH * 0.03, TRACK_LENGTH * 0.06, TRACK_LENGTH * 0.09,
+    TRACK_LENGTH * 0.02, TRACK_LENGTH * 0.05, TRACK_LENGTH * 0.08,
+    TRACK_LENGTH * 0.24, TRACK_LENGTH * 0.27, TRACK_LENGTH * 0.30,
     TRACK_LENGTH * 0.46, TRACK_LENGTH * 0.50, TRACK_LENGTH * 0.54,
-    TRACK_LENGTH * 0.94, TRACK_LENGTH * 0.97,
+    TRACK_LENGTH * 0.92, TRACK_LENGTH * 0.95, TRACK_LENGTH * 0.98,
   ];
   barrierS.forEach((s, idx) => {
     const t = sampleTrack(s);
-    // Place on outer side (sign depends on turn; use outward vector from origin!)
     const dotOut = t.rx * t.x + t.rz * t.z;
     const side = dotOut >= 0 ? 1 : -1;
-    const dist = TRACK_HW + 0.62;
+    const dist = TRACK_HW + 0.72;
     const bx = t.x + t.rx * dist * side;
     const bz = t.z + t.rz * dist * side;
-    pushBox(bx, 0.24, bz, 0.48, 0.48, 0.48, 6, idx % 2);
+    pushBox(bx, 0.28, bz, 0.56, 0.56, 0.56, 6, idx % 2);
   });
 
-  // 5) Sculpted Miniature Pine Trees (infield cluster + corners, never blocking track visibility!)
+  // 5) Lush Miniature Pine Groves (infield + stadium corners — safely clear of tarmac!)
   const trees = [
-    [-0.8, -2.8, 1.05], [ 1.1, -3.5, 0.90], [-0.4,  2.4, 1.12],
-    [ 1.3,  1.6, 0.85], [-1.2,  0.1, 0.95], [ 0.7, -0.4, 0.82],
-    [-6.6, -8.6, 1.15], [ 6.6, -8.4, 1.05], [-6.5,  8.6, 1.10],
-    [ 6.8,  8.3, 0.98], [ 6.8, -2.5, 0.88], [-6.7,  3.6, 0.92],
+    [-2.4, -5.2, 1.35], [ 2.2, -5.8, 1.15], [ 0.0, -3.0, 1.45],
+    [-3.1, -0.8, 1.18], [ 2.6,  0.4, 1.25], [-1.2,  3.2, 1.38],
+    [ 2.1,  4.8, 1.12], [-2.8,  6.2, 1.28], [ 0.4,  7.4, 1.10],
+    [-12.8, -14.8, 1.50], [ 12.6, -14.4, 1.40], [-12.6,  14.8, 1.42],
+    [ 13.0,  14.4, 1.35], [-13.2,  -4.8, 1.25], [ 13.4,  -6.0, 1.22],
+    [-13.0,   6.4, 1.28], [ 13.2,   7.2, 1.25], [ -6.0, -15.6, 1.20],
+    [  6.2, -15.4, 1.18], [ -5.8,  15.8, 1.22], [  6.5,  15.6, 1.15],
   ];
   for (const [tx, tz, sc] of trees) {
-    pushBox(tx, 0.22 * sc, tz, 0.18 * sc, 0.44 * sc, 0.18 * sc, 5);
-    pushCone(tx, 0.36 * sc, tz, 0.62 * sc, 0.92 * sc, 8, 4, 0.0);
-    pushCone(tx, 0.82 * sc, tz, 0.48 * sc, 0.84 * sc, 8, 4, 0.5);
-    pushCone(tx, 1.24 * sc, tz, 0.32 * sc, 0.72 * sc, 8, 4, 1.0);
+    pushBox(tx, 0.24 * sc, tz, 0.20 * sc, 0.48 * sc, 0.20 * sc, 5);
+    pushCone(tx, 0.40 * sc, tz, 0.68 * sc, 0.98 * sc, 8, 4, 0.0);
+    pushCone(tx, 0.88 * sc, tz, 0.52 * sc, 0.88 * sc, 8, 4, 0.5);
+    pushCone(tx, 1.32 * sc, tz, 0.35 * sc, 0.76 * sc, 8, 4, 1.0);
   }
 
-  // 6) 6 Stadium Floodlight Towers with glowing heads
+  // 6) 6 Tall Stadium Floodlight Towers with glowing heads
   for (const fl of FLOODLIGHTS) {
-    pushBox(fl[0], fl[1] * 0.5, fl[2], 0.16, fl[1], 0.16, 3);
-    pushBox(fl[0], fl[1] + 0.15, fl[2], 0.65, 0.28, 0.32, 3);
-    pushBox(fl[0], fl[1] + 0.05, fl[2], 0.56, 0.16, 0.36, 8, 0.0);
+    pushBox(fl[0], fl[1] * 0.5, fl[2], 0.22, fl[1], 0.22, 3);
+    pushBox(fl[0], fl[1] + 0.18, fl[2], 0.85, 0.34, 0.40, 3);
+    pushBox(fl[0], fl[1] + 0.06, fl[2], 0.74, 0.20, 0.46, 8, 0.0);
   }
 
   return { verts: new Float32Array(verts), indices: new Uint32Array(indices) };
@@ -801,8 +804,8 @@ export function createTrackRenderer(gl) {
   gl.drawBuffers([gl.NONE]);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-  const lightView = makeLookAt([9.0, 19.0, 7.5], [0, 0, 0], [0, 1, 0]);
-  const lightProj = makeOrtho(-12.5, 12.5, -14.0, 14.0, 2.0, 44.0);
+  const lightView = makeLookAt([14.0, 28.0, 11.5], [0, 0, 0], [0, 1, 0]);
+  const lightProj = makeOrtho(-22.0, 22.0, -24.0, 24.0, 2.0, 68.0);
   const lightVP = mulMat4(lightProj, lightView);
 
   let curW = 0, curH = 0, halfW = 0, halfH = 0;
@@ -870,8 +873,8 @@ export function createTrackRenderer(gl) {
     // Update 8 HDR lights (6 stadium floodlights + player emerald aura + band tension highlight)
     for (let i = 0; i < 6; i++) {
       const fl = FLOODLIGHTS[i];
-      lightsPos[i * 4 + 0] = fl[0]; lightsPos[i * 4 + 1] = fl[1]; lightsPos[i * 4 + 2] = fl[2]; lightsPos[i * 4 + 3] = 15.0;
-      lightsCol[i * 4 + 0] = 1.35; lightsCol[i * 4 + 1] = 1.24; lightsCol[i * 4 + 2] = 1.05; lightsCol[i * 4 + 3] = 1.45;
+      lightsPos[i * 4 + 0] = fl[0]; lightsPos[i * 4 + 1] = fl[1]; lightsPos[i * 4 + 2] = fl[2]; lightsPos[i * 4 + 3] = 26.0;
+      lightsCol[i * 4 + 0] = 1.35; lightsCol[i * 4 + 1] = 1.24; lightsCol[i * 4 + 2] = 1.05; lightsCol[i * 4 + 3] = 1.55;
     }
     const pCar = cars[0];
     if (pCar) {

@@ -64,9 +64,16 @@ h1 em{font-style:normal;color:var(--amber)}
 }
 .gdc-dot{width:9px;height:9px;border-radius:2px;box-shadow:0 0 0 1.5px var(--ink);flex:none}
 
-nav{flex:none;display:flex;align-items:center;gap:9px;flex-wrap:nowrap}
+nav{flex:none;display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
 nav .source{font-weight:700;font-size:13.5px}
 #lang{font-family:var(--pix);min-width:42px}
+.gdc-audio-grp{display:inline-flex;align-items:center;gap:5px}
+.gdc-audio-btn{
+  font:700 12px var(--pix);padding:5px 8px;min-height:34px;min-width:34px;
+  background:#221e33e8;color:#8e8282;
+}
+.gdc-audio-btn[aria-pressed="true"]{background:#234440;color:var(--turquoise)}
+.gdc-audio-btn[aria-pressed="true"]:hover{background:#2d5752;color:#a8ffe9}
 
 .gdc-picker{
   display:inline-flex;align-items:center;gap:7px;

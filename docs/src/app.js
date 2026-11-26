@@ -1,7 +1,8 @@
 // Game Design Codex (GDC) shared application shell — sibling to FX Lab.
-// Fullscreen WebGL2 + crisp 2D HUD overlay, live keyboard/mouse gameplay routing, orbit/zoom, EN/PL i18n.
+// Fullscreen WebGL2 + 2D HUD, procedural Web Audio SFX/Music toggles, live keyboard/mouse gameplay, Follow-Cam & Shake!
 import { CODEX_ENTRIES, getEntryMeta } from "./catalog.js";
 import { clamp, cameraBasisFromOrbit, screenRayToPlaneY } from "./gl-utils.js";
+import { createAudioEngine } from "./audio.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -10,7 +11,7 @@ const overlay = $("ov");
 const ovCtx = overlay.getContext("2d");
 const gl = canvas.getContext("webgl2", { antialias: true, alpha: false, preserveDrawingBuffer: true });
 
-// Always resolve assets (thumbs, etc.) relative to /gdc/ root regardless of pushState/replaceState subroutes!
+// Always resolve assets relative to /gdc/ root regardless of pushState/replaceState subroutes!
 const SITE_ROOT = new URL("../", import.meta.url).href;
 
 const params = new URLSearchParams(location.search);
@@ -21,11 +22,12 @@ let paused = false;
 let activeMeta = null;
 let activeEntry = null;
 const entryCache = new Map();
+const audio = createAudioEngine();
 
 const cam = { yaw: 0.16, pitch: 0.80, dist: 24.5, targetX: 0, targetY: 0, targetZ: 0.2, fovDeg: 42 };
 let defaultCam = { ...cam };
+let renderCam = { ...cam }; // effective camera after Follow-Cam / micro screen-shake!
 
-// Shared live input state forwarded to playable mini-games!
 const keys = new Set();
 const pointer = { x: 0, y: 0, world: null, down: false, button: 0 };
 
@@ -63,15 +65,46 @@ function applyEntryCam(base) {
   const portraitBoost = cssH > cssW ? 1.36 : 1.0;
   defaultCam = { ...base, dist: base.dist * portraitBoost };
   Object.assign(cam, defaultCam);
+  Object.assign(renderCam, cam);
 }
 
 function projectClientToWorldY0(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
   const ndcY = 1 - ((clientY - rect.top) / rect.height) * 2;
-  const basis = cameraBasisFromOrbit(cam.yaw, cam.pitch, cam.dist, cam.targetX, cam.targetY, cam.targetZ);
-  return screenRayToPlaneY(ndcX, ndcY, basis, (cam.fovDeg * Math.PI) / 180, rect.width / Math.max(1, rect.height), 0);
+  const basis = cameraBasisFromOrbit(renderCam.yaw, renderCam.pitch, renderCam.dist, renderCam.targetX, renderCam.targetY, renderCam.targetZ);
+  return screenRayToPlaneY(ndcX, ndcY, basis, (renderCam.fovDeg * Math.PI) / 180, rect.width / Math.max(1, rect.height), 0);
 }
+
+// Inject crisp SFX + Music toggle buttons into header nav cleanly across all 4 HTML routes!
+function ensureAudioButtons() {
+  const nav = document.querySelector("header nav");
+  if (!nav || $("sfxBtn")) return;
+  const grp = document.createElement("div");
+  grp.className = "gdc-audio-grp";
+  grp.innerHTML = `
+    <button id="sfxBtn" class="gdc-audio-btn" type="button" aria-pressed="true" title="Toggle SFX (M)">SFX</button>
+    <button id="musicBtn" class="gdc-audio-btn" type="button" aria-pressed="true" title="Toggle Music (B)">♪</button>
+  `;
+  nav.insertBefore(grp, $("lang"));
+  $("sfxBtn").addEventListener("click", () => {
+    audio.unlock();
+    audio.setSfxOn(!audio.getSfxOn());
+    updateAudioButtons();
+  });
+  $("musicBtn").addEventListener("click", () => {
+    audio.unlock();
+    audio.setMusicOn(!audio.getMusicOn());
+    updateAudioButtons();
+  });
+}
+
+function updateAudioButtons() {
+  const s = $("sfxBtn"), m = $("musicBtn");
+  if (s) s.setAttribute("aria-pressed", audio.getSfxOn() ? "true" : "false");
+  if (m) m.setAttribute("aria-pressed", audio.getMusicOn() ? "true" : "false");
+}
+ensureAudioButtons();
 
 function renderRibbon() {
   const ribbon = $("codexRibbon");
@@ -82,7 +115,7 @@ function renderRibbon() {
     btn.className = "gdc-pill";
     btn.setAttribute("aria-current", item.id === activeMeta?.id ? "true" : "false");
     btn.innerHTML = `<span class="gdc-dot" style="background:${item.accent}"></span><span>${item.title[lang]}</span>`;
-    btn.addEventListener("click", () => loadEntry(item.id, true));
+    btn.addEventListener("click", () => { audio.unlock(); loadEntry(item.id, true); });
     ribbon.appendChild(btn);
   }
 }
@@ -115,6 +148,7 @@ function renderCatalogModal() {
       </div>
     `;
     card.addEventListener("click", () => {
+      audio.unlock();
       closeCatalog();
       loadEntry(item.id, true);
     });
@@ -149,12 +183,14 @@ function renderHud() {
     b.textContent = act.label;
     if (act.pressed) b.setAttribute("aria-pressed", "true");
     b.addEventListener("click", () => {
+      audio.unlock();
       activeEntry.onAction(act.id);
       renderHud();
     });
     actionsWrap.appendChild(b);
   }
 
+  updateAudioButtons();
   renderRibbon();
   if (!$("catalogModal").hidden) renderCatalogModal();
 }
@@ -163,10 +199,11 @@ async function loadEntry(id, pushHistory = false) {
   const meta = getEntryMeta(id);
   activeMeta = meta;
   keys.clear();
+  audio.setTheme(meta.id);
   let inst = entryCache.get(meta.id);
   if (!inst) {
     const mod = await import(meta.module);
-    inst = mod.createEntry(gl, { requestHudRefresh: renderHud });
+    inst = mod.createEntry(gl, { requestHudRefresh: renderHud, audio });
     entryCache.set(meta.id, inst);
   }
   activeEntry = inst;
@@ -192,7 +229,7 @@ function closeCatalog() {
   $("catalogModal").hidden = true;
   $("catalogBtn").setAttribute("aria-expanded", "false");
 }
-$("catalogBtn").addEventListener("click", () => ($("catalogModal").hidden ? openCatalog() : closeCatalog()));
+$("catalogBtn").addEventListener("click", () => { audio.unlock(); $("catalogModal").hidden ? openCatalog() : closeCatalog(); });
 $("catalogClose").addEventListener("click", closeCatalog);
 $("catalogModal").addEventListener("click", (e) => { if (e.target === $("catalogModal")) closeCatalog(); });
 
@@ -202,9 +239,11 @@ $("lang").addEventListener("click", () => {
 });
 $("pauseBtn").addEventListener("click", () => {
   paused = !paused;
+  if (paused) audio.setEngine(0, false);
   renderHud();
 });
 $("resetBtn").addEventListener("click", () => {
+  audio.unlock();
   if (activeEntry) {
     activeEntry.reset();
     applyEntryCam(activeEntry.defaultCam);
@@ -212,14 +251,15 @@ $("resetBtn").addEventListener("click", () => {
   }
 });
 
-// Prevent context menu on canvas so Right-Click can cleanly parry/block or orbit!
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
 let dragActive = false;
 let dragMoved = false;
+let entryClaimedDrag = false;
 let downX = 0, downY = 0, lastX = 0, lastY = 0;
 
 canvas.addEventListener("pointerdown", (e) => {
+  audio.unlock();
   const world = projectClientToWorldY0(e.clientX, e.clientY);
   pointer.x = e.clientX;
   pointer.y = e.clientY;
@@ -227,11 +267,14 @@ canvas.addEventListener("pointerdown", (e) => {
   pointer.down = true;
   pointer.button = e.button;
 
-  // Let entry claim right-click (e.g. shield block in Attack Tokens) or direct gameplay actions
+  // Let entry claim pointer-drag (e.g. A* drag-to-paint walls, Attack Tokens right-click shield block!)
   if (activeEntry?.onPointerDown && activeEntry.onPointerDown({ world, button: e.button, shiftKey: e.shiftKey })) {
+    entryClaimedDrag = true;
+    canvas.setPointerCapture(e.pointerId);
     return;
   }
 
+  entryClaimedDrag = false;
   dragActive = true;
   dragMoved = false;
   downX = lastX = e.clientX;
@@ -244,7 +287,9 @@ canvas.addEventListener("pointermove", (e) => {
   pointer.x = e.clientX;
   pointer.y = e.clientY;
   pointer.world = projectClientToWorldY0(e.clientX, e.clientY);
-  if (activeEntry?.onPointerMove) activeEntry.onPointerMove({ world: pointer.world, down: pointer.down });
+  if (activeEntry?.onPointerMove) {
+    activeEntry.onPointerMove({ world: pointer.world, down: pointer.down, button: pointer.button, claimed: entryClaimedDrag });
+  }
 
   if (!dragActive) return;
   const dx = e.clientX - lastX;
@@ -254,12 +299,17 @@ canvas.addEventListener("pointermove", (e) => {
   if (Math.hypot(e.clientX - downX, e.clientY - downY) > 7) dragMoved = true;
   if (dragMoved) {
     cam.yaw -= dx * 0.0065;
-    cam.pitch = clamp(cam.pitch + dy * 0.0055, 0.36, 1.38);
+    cam.pitch = clamp(cam.pitch + dy * 0.0055, 0.30, 1.38);
   }
 });
 
 canvas.addEventListener("pointerup", (e) => {
   pointer.down = false;
+  if (entryClaimedDrag) {
+    entryClaimedDrag = false;
+    if (activeEntry?.onPointerUp) activeEntry.onPointerUp({ button: e.button });
+    return;
+  }
   if (activeEntry?.onPointerUp) activeEntry.onPointerUp({ button: e.button });
 
   if (!dragActive) return;
@@ -276,19 +326,21 @@ canvas.addEventListener("pointerup", (e) => {
 
 canvas.addEventListener("wheel", (e) => {
   e.preventDefault();
-  cam.dist = clamp(cam.dist * (1 + Math.sign(e.deltaY) * 0.08), 11.0, 38.0);
+  cam.dist = clamp(cam.dist * (1 + Math.sign(e.deltaY) * 0.08), 10.0, 52.0);
 }, { passive: false });
 
 const GAME_KEYS = new Set([
   "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
   "KeyW", "KeyA", "KeyS", "KeyD",
   "Space", "ShiftLeft", "ShiftRight",
-  "KeyE", "KeyJ", "KeyK", "KeyX", "Enter",
+  "KeyE", "KeyJ", "KeyK", "KeyX", "KeyC", "Enter",
 ]);
 
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("catalogModal").hidden) { closeCatalog(); return; }
   if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+
+  audio.unlock();
 
   if (GAME_KEYS.has(e.code)) {
     e.preventDefault();
@@ -300,7 +352,9 @@ window.addEventListener("keydown", (e) => {
     return;
   }
 
-  if (e.code === "KeyP") { paused = !paused; renderHud(); }
+  if (e.code === "KeyM") { audio.setSfxOn(!audio.getSfxOn()); updateAudioButtons(); }
+  if (e.code === "KeyB") { audio.setMusicOn(!audio.getMusicOn()); updateAudioButtons(); }
+  if (e.code === "KeyP") { paused = !paused; if (paused) audio.setEngine(0, false); renderHud(); }
   if (e.code === "KeyR") {
     if (activeEntry) { activeEntry.reset(); applyEntryCam(activeEntry.defaultCam); renderHud(); }
   }
@@ -319,9 +373,16 @@ window.addEventListener("keyup", (e) => {
 window.addEventListener("blur", () => {
   keys.clear();
   pointer.down = false;
+  entryClaimedDrag = false;
+  audio.setEngine(0, false);
 });
 
-// Expose debug/capture hook for automated QA & OG card generation
+function resolveFrameCamera() {
+  const eff = activeEntry?.getCameraOverride ? activeEntry.getCameraOverride(cam) : null;
+  renderCam = eff ? { ...cam, ...eff } : { ...cam };
+  return renderCam;
+}
+
 window.__GDC__ = {
   loadEntry,
   setPaused(v) { paused = !!v; },
@@ -330,10 +391,12 @@ window.__GDC__ = {
   pressKey(code) { keys.add(code); activeEntry?.onKeyDown?.(code, false); renderHud(); },
   releaseKey(code) { keys.delete(code); activeEntry?.onKeyUp?.(code); },
   getState() { return activeEntry?.getDebugState?.() || null; },
+  getAudioState() { return { sfxOn: audio.getSfxOn(), musicOn: audio.getMusicOn() }; },
   renderNow() {
     if (activeEntry) {
+      const c = resolveFrameCamera();
       ovCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      activeEntry.render(canvas.width, canvas.height, cam, ovCtx, cssW, cssH, lang);
+      activeEntry.render(canvas.width, canvas.height, c, ovCtx, cssW, cssH, lang);
     }
   },
 };
@@ -350,8 +413,9 @@ loadEntry(initialId, false).then(() => {
         overlay.width = canvas.width;
         overlay.height = canvas.height;
       }
+      const c = resolveFrameCamera();
       ovCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      activeEntry.render(canvas.width, canvas.height, cam, ovCtx, cssW, cssH, lang);
+      activeEntry.render(canvas.width, canvas.height, c, ovCtx, cssW, cssH, lang);
     }
     requestAnimationFrame(cleanFrame);
   }

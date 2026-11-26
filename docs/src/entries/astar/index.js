@@ -1,5 +1,6 @@
-// Playable Entry #1: A* Pathfinding (Walk the 3D Stone Maze yourself with WASD/Arrows,
-// click any tile to paint walls live, Shift+Click to move Goal (0), generate random mazes, or hit Auto-Solve!)
+// Playable Entry #1: A* Pathfinding — Full Click-and-Drag 3D Stone Maze Editor + Live WASD Walking!
+// Left-Click & Drag directly across tiles to paint/erase stone walls in real time (Right-Drag orbits camera),
+// Shift+Click (or Move Goal tool) moves Goal (0), Clear wipes board to draw from scratch, WASD walks live!
 import { createMazeRenderer, MAZE_W, MAZE_H } from "./maze-renderer.js";
 
 const DEFAULT_MAZE = [
@@ -21,7 +22,6 @@ const DEFAULT_MAZE = [
 ];
 
 function generateSolvableMaze(start, goal) {
-  // Carve guaranteed solvable braided stone dungeon via randomized DFS + extra loops!
   const g = Array.from({ length: MAZE_H }, () => Array(MAZE_W).fill("#"));
   const visited = new Set();
   function carve(x, z) {
@@ -37,7 +37,6 @@ function generateSolvableMaze(start, goal) {
     }
   }
   carve(1, 1);
-  // Knock out a few extra interior walls so there are fun competing routes!
   for (let i = 0; i < 14; i++) {
     const rx = 1 + Math.floor(Math.random() * (MAZE_W - 2));
     const rz = 1 + Math.floor(Math.random() * (MAZE_H - 2));
@@ -45,6 +44,15 @@ function generateSolvableMaze(start, goal) {
   }
   g[start.z][start.x] = ".";
   g[goal.z][goal.x] = ".";
+  return g;
+}
+
+function makeEmptyMaze() {
+  const g = Array.from({ length: MAZE_H }, (_, z) =>
+    Array.from({ length: MAZE_W }, (_, x) =>
+      (x === 0 || x === MAZE_W - 1 || z === 0 || z === MAZE_H - 1) ? "#" : "."
+    )
+  );
   return g;
 }
 
@@ -80,7 +88,7 @@ function drawBadge(ctx, x, y, text, bg, fg = "#ffffff", maxW = 1200) {
 function drawMazeHud(ctx, ow, state, lang) {
   if (ow < 520) return;
   const pl = lang === "pl";
-  const boxW = Math.min(ow - 24, 410);
+  const boxW = Math.min(ow - 24, 435);
   const boxH = 38;
   const x = ow - boxW - 18;
   const y = 78;
@@ -90,37 +98,49 @@ function drawMazeHud(ctx, ow, state, lang) {
   ctx.roundRect(x, y, boxW, boxH, 8);
   ctx.fill();
   ctx.lineWidth = 2;
-  ctx.strokeStyle = state.playerMode ? "#00e4ac" : "#38bdf8";
+  ctx.strokeStyle = state.blocked ? "#ef4444" : state.playerMode ? "#00e4ac" : "#38bdf8";
   ctx.stroke();
 
   const dHere = state.distHere >= 0 ? state.distHere : "∞";
-  const lbl = state.playerMode
-    ? (pl
+  let lbl = "";
+  if (state.blocked) {
+    lbl = pl ? "BRAK DROGI! Usuń jedną ze ścian" : "PATH BLOCKED! Erase a wall to open route";
+  } else if (state.playerMode) {
+    lbl = pl
       ? `KROKI: ${state.stepsTaken} · DO METY: ${dHere} · OPTIMUM: ${state.bestFromStart}`
-      : `STEPS: ${state.stepsTaken} · TO GOAL: ${dHere} · OPTIMAL: ${state.bestFromStart}`)
-    : (pl ? `AUTO-SOLVE · KROKÓW: ${state.bestFromStart} · WASD = CHODŹ SAM` : `AUTO-SOLVE · BEST: ${state.bestFromStart} · PRESS WASD TO WALK`);
+      : `STEPS: ${state.stepsTaken} · TO GOAL: ${dHere} · OPTIMAL: ${state.bestFromStart}`;
+  } else {
+    lbl = pl
+      ? `EDYTOR ŚCIAN (PRZECIĄGNIJ) · OPTIMUM: ${state.bestFromStart} · WASD = CHODŹ`
+      : `DRAG TO PAINT WALLS · BEST: ${state.bestFromStart} · WASD = WALK`;
+  }
   ctx.font = "700 12px 'Courier New', monospace";
-  ctx.fillStyle = state.playerMode ? "#76ddaf" : "#bae6fd";
+  ctx.fillStyle = state.blocked ? "#fca5a5" : state.playerMode ? "#76ddaf" : "#bae6fd";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(lbl, x + 12, y + boxH / 2 + 0.5);
   ctx.restore();
 }
 
-export function createEntry(gl, { requestHudRefresh } = {}) {
+export function createEntry(gl, { requestHudRefresh, audio } = {}) {
   let grid = DEFAULT_MAZE.map(r => r.split(""));
   let start = { x: 1, z: 13 };
   let goal = { x: 9, z: 1 };
   let showNumbers = true;
-  let playerMode = false; // switches to true on WASD/Arrows; Space triggers Auto-Solve!
+  let tool = "wall"; // "wall" (drag paint/erase) | "goal" (click place goal) | "orbit"
+  let playerMode = false;
   let prevPlayerMode = false;
-  let wavePhase = 0;
+  let wavePhase = 25;
   let heroT = 0;
   let time = 0;
   let stepsTaken = 0;
   let reachedGoal = false;
 
-  // Player live tile + smooth hop interpolation
+  // Live hover & click-drag brush state
+  let hoverTile = null; // { x, z }
+  let paintBrush = null; // "#" | "." while left-dragging walls!
+  let lastPaintedKey = "";
+
   let pTile = { x: start.x, z: start.z };
   let pFrom = { x: start.x, z: start.z };
   let pMoveT = 1.0;
@@ -136,6 +156,14 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
   const sparks = [];
 
   const renderer = createMazeRenderer(gl, grid.map(r => r.join("")));
+
+  function worldToTile(worldPt) {
+    if (!worldPt) return null;
+    const tx = Math.floor(worldPt[0] + MAZE_W * 0.5);
+    const tz = Math.floor(worldPt[2] + MAZE_H * 0.5);
+    if (tx <= 0 || tx >= MAZE_W - 1 || tz <= 0 || tz >= MAZE_H - 1) return null;
+    return { x: tx, z: tz };
+  }
 
   function computeField() {
     dist.fill(-1);
@@ -158,8 +186,7 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
         q.push([nx, nz]);
       }
     }
-    bestFromStart = Math.max(0, dist[start.z * MAZE_W + start.x]);
-    // Trace shortest downhill path from current start (or player tile in auto-solve)
+    bestFromStart = dist[start.z * MAZE_W + start.x];
     path = [];
     const orig = playerMode ? pTile : start;
     let cx = orig.x, cz = orig.z;
@@ -192,6 +219,7 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
         r: 1.0, g: 0.85, b: 0.25, life: 1.0,
       });
     }
+    audio?.goalWin?.();
   }
 
   function startAutoSolve() {
@@ -210,6 +238,37 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
     stepsTaken = 0;
     reachedGoal = false;
     pTrail = [{ x: start.x, z: start.z }];
+  }
+
+  function applyPaintAt(tile) {
+    if (!tile) return;
+    const { x: tx, z: tz } = tile;
+    if ((tx === start.x && tz === start.z) || (tx === goal.x && tz === goal.z)) return;
+    if (playerMode && tx === pTile.x && tz === pTile.z) return;
+    const key = `${tx},${tz}`;
+    if (key === lastPaintedKey) return;
+    lastPaintedKey = key;
+    if (grid[tz][tx] === paintBrush) return;
+
+    grid[tz][tx] = paintBrush;
+    renderer.rebuildMaze(grid.map(r => r.join("")));
+    audio?.wallClick?.(paintBrush === "#");
+    computeField();
+    // Keep distance field immediately visible while editing walls so player sees numbers update live!
+    wavePhase = Math.max(wavePhase, maxDist + 4);
+    if (!playerMode) heroT = 0;
+  }
+
+  function placeGoalAt(tile) {
+    if (!tile) return;
+    const { x: tx, z: tz } = tile;
+    if (grid[tz][tx] === "#" || (tx === start.x && tz === start.z)) return;
+    goal = { x: tx, z: tz };
+    reachedGoal = false;
+    audio?.wallClick?.(false);
+    computeField();
+    wavePhase = Math.max(wavePhase, maxDist + 4);
+    if (!playerMode) heroT = 0;
   }
 
   function tryStepPlayer(dx, dz) {
@@ -231,9 +290,12 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
     pTrail.push({ x: nx, z: nz });
     if (pTrail.length > 60) pTrail.shift();
     computeField();
+    const dNow = dist[nz * MAZE_W + nx];
     if (nx === goal.x && nz === goal.z && !reachedGoal) {
       reachedGoal = true;
       burstCelebration(goal.x, goal.z);
+    } else if (dNow >= 0) {
+      audio?.stepTone?.(dNow);
     }
   }
 
@@ -247,12 +309,25 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
     startAutoSolve();
   }
 
+  function clearMaze() {
+    start = { x: 1, z: 13 };
+    goal = { x: 9, z: 1 };
+    grid = makeEmptyMaze();
+    resetPlayerToStart();
+    renderer.rebuildMaze(grid.map(r => r.join("")));
+    audio?.wallClick?.(false);
+    computeField();
+    wavePhase = maxDist + 4;
+    heroT = 0;
+  }
+
   function randomizeMaze() {
     start = { x: 1, z: 13 };
     goal = { x: 9, z: 1 };
     grid = generateSolvableMaze(start, goal);
     resetPlayerToStart();
     renderer.rebuildMaze(grid.map(r => r.join("")));
+    audio?.wallClick?.(true);
     if (playerMode) {
       wavePhase = maxDist + 4;
       computeField();
@@ -261,26 +336,31 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
     }
   }
 
-  function onClickWorld(worldPt, { shiftKey }) {
-    const tx = Math.floor(worldPt[0] + MAZE_W * 0.5);
-    const tz = Math.floor(worldPt[2] + MAZE_H * 0.5);
-    if (tx <= 0 || tx >= MAZE_W - 1 || tz <= 0 || tz >= MAZE_H - 1) return;
-    if (shiftKey) {
-      if (grid[tz][tx] !== "#" && (tx !== start.x || tz !== start.z)) {
-        goal = { x: tx, z: tz };
-        reachedGoal = false;
-        computeField();
-        if (!playerMode) startAutoSolve();
-      }
-      return;
+  // Claim Left-Click & Drag inside the maze when Paint Walls / Move Goal is active (Right-Drag always orbits!)
+  function onPointerDown({ world, button, shiftKey }) {
+    if (button !== 0 || tool === "orbit") return false;
+    const tile = worldToTile(world);
+    if (!tile) return false; // dragging outside the maze orbits camera seamlessly!
+    if (shiftKey || tool === "goal") {
+      placeGoalAt(tile);
+      return true;
     }
-    if ((tx === start.x && tz === start.z) || (tx === goal.x && tz === goal.z)) return;
-    if (playerMode && tx === pTile.x && tz === pTile.z) return;
-    grid[tz][tx] = grid[tz][tx] === "#" ? "." : "#";
-    renderer.rebuildMaze(grid.map(r => r.join("")));
-    computeField();
-    if (!playerMode) startAutoSolve();
-    else wavePhase = maxDist + 4;
+    paintBrush = grid[tile.z][tile.x] === "#" ? "." : "#";
+    lastPaintedKey = "";
+    applyPaintAt(tile);
+    return true;
+  }
+
+  function onPointerMove({ world, down, claimed }) {
+    hoverTile = worldToTile(world);
+    if (down && claimed && paintBrush && hoverTile) {
+      applyPaintAt(hoverTile);
+    }
+  }
+
+  function onPointerUp() {
+    paintBrush = null;
+    lastPaintedKey = "";
   }
 
   function update(dt, keys = new Set()) {
@@ -288,7 +368,6 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
     time += h;
     moveCooldown = Math.max(0, moveCooldown - h);
 
-    // Continuous WASD / Arrow walking!
     if (keys.has("KeyW") || keys.has("ArrowUp")) tryStepPlayer(0, -1);
     else if (keys.has("KeyS") || keys.has("ArrowDown")) tryStepPlayer(0, 1);
     else if (keys.has("KeyA") || keys.has("ArrowLeft")) tryStepPlayer(-1, 0);
@@ -302,11 +381,11 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
       wavePhase = Math.max(wavePhase, maxDist + 4);
       pMoveT = Math.min(1, pMoveT + h * 7.5);
     } else {
-      wavePhase += h * 10.0;
-      const walkStart = maxDist + 2.0;
+      wavePhase += h * 10.5;
+      const walkStart = maxDist + 1.8;
       if (path.length >= 2 && wavePhase > walkStart) {
         const prevIdx = Math.floor(heroT);
-        heroT = Math.min(path.length - 1, heroT + h * 3.6);
+        heroT = Math.min(path.length - 1, heroT + h * 3.8);
         if (heroT >= path.length - 1 && prevIdx < path.length - 1) {
           burstCelebration(goal.x, goal.z);
         }
@@ -327,7 +406,7 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
     const onPathSet = new Set();
     if (playerMode) {
       for (const pt of path) onPathSet.add(pt.z * MAZE_W + pt.x);
-    } else if (wavePhase > maxDist + 1.5) {
+    } else if (wavePhase > maxDist + 1.2) {
       const curStep = Math.floor(heroT);
       for (let i = 0; i <= Math.min(curStep, path.length - 1); i++) {
         onPathSet.add(path[i].z * MAZE_W + path[i].x);
@@ -385,7 +464,33 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
     if (ovCtx) {
       ovCtx.clearRect(0, 0, ow, oh);
       const distHere = dist[pTile.z * MAZE_W + pTile.x];
-      drawMazeHud(ovCtx, ow, { playerMode, stepsTaken, distHere, bestFromStart }, lang);
+      const blocked = playerMode ? distHere < 0 : bestFromStart < 0;
+      drawMazeHud(ovCtx, ow, { playerMode, stepsTaken, distHere, bestFromStart: Math.max(0, bestFromStart), blocked }, lang);
+
+      // Draw crisp projected hover tile outline so maze editing feels snappy like a real level editor!
+      if (hoverTile && tool !== "orbit") {
+        const x0 = hoverTile.x - HALF_W, z0 = hoverTile.z - HALF_H;
+        const yH = grid[hoverTile.z][hoverTile.x] === "#" ? 0.92 : 0.06;
+        const corners = [
+          project3D([x0 + 0.04, yH, z0 + 0.04], viewProj, ow, oh),
+          project3D([x0 + 0.96, yH, z0 + 0.04], viewProj, ow, oh),
+          project3D([x0 + 0.96, yH, z0 + 0.96], viewProj, ow, oh),
+          project3D([x0 + 0.04, yH, z0 + 0.96], viewProj, ow, oh),
+        ];
+        if (corners.every(Boolean)) {
+          ovCtx.save();
+          ovCtx.beginPath();
+          ovCtx.moveTo(corners[0].x, corners[0].y);
+          for (let i = 1; i < 4; i++) ovCtx.lineTo(corners[i].x, corners[i].y);
+          ovCtx.closePath();
+          ovCtx.fillStyle = tool === "goal" ? "rgba(245,158,11,0.28)" : "rgba(0,228,172,0.22)";
+          ovCtx.fill();
+          ovCtx.lineWidth = 2.5;
+          ovCtx.strokeStyle = tool === "goal" ? "#fbbf24" : "#00e4ac";
+          ovCtx.stroke();
+          ovCtx.restore();
+        }
+      }
 
       if (showNumbers) {
         ovCtx.save();
@@ -425,28 +530,36 @@ export function createEntry(gl, { requestHudRefresh } = {}) {
 
   return {
     id: "astar",
-    defaultCam: { yaw: 0.08, pitch: 0.94, dist: 21.5, targetX: 0, targetY: 0, targetZ: 0.3, fovDeg: 40 },
+    defaultCam: { yaw: 0.08, pitch: 0.96, dist: 21.5, targetX: 0, targetY: 0, targetZ: 0.3, fovDeg: 40 },
     getActions(lang) {
       const pl = lang === "pl";
       return [
-        { id: "play", label: pl ? (playerMode ? "Chodzisz (WASD)" : "Zagraj (WASD)") : (playerMode ? "Walking (WASD)" : "Walk (WASD)"), pressed: playerMode },
+        { id: "tool_wall", label: pl ? "Rysuj ściany" : "Paint Walls", pressed: tool === "wall" },
+        { id: "tool_goal", label: pl ? "Przenieś Metę" : "Move Goal", pressed: tool === "goal" },
         { id: "autosolve", label: pl ? "Auto-Solve (Spacja)" : "Auto-Solve (Space)", pressed: !playerMode },
+        { id: "clear", label: pl ? "Wyczyść" : "Clear", pressed: false },
+        { id: "random", label: pl ? "Losuj" : "Random", pressed: false },
         { id: "numbers", label: pl ? (showNumbers ? "Liczby: WŁ" : "Liczby: WYŁ") : (showNumbers ? "Numbers: ON" : "Numbers: OFF"), pressed: showNumbers },
-        { id: "random", label: pl ? "Losuj labirynt" : "Random Maze", pressed: false },
       ];
     },
     onAction(id) {
-      if (id === "play") { playerMode = true; wavePhase = maxDist + 4; resetPlayerToStart(); computeField(); }
+      if (id === "tool_wall") tool = "wall";
+      if (id === "tool_goal") tool = "goal";
       if (id === "autosolve") startAutoSolve();
-      if (id === "numbers") showNumbers = !showNumbers;
+      if (id === "clear") clearMaze();
       if (id === "random") randomizeMaze();
+      if (id === "numbers") showNumbers = !showNumbers;
     },
     onKeyDown(code, repeat) {
       if (code === "Space" && !repeat) startAutoSolve();
     },
-    onClickWorld,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
     getDebugState() {
-      return { playerMode, pTile, stepsTaken, bestFromStart, reachedGoal };
+      let wallCount = 0;
+      for (let z = 1; z < MAZE_H - 1; z++) for (let x = 1; x < MAZE_W - 1; x++) if (grid[z][x] === "#") wallCount++;
+      return { playerMode, tool, pTile, stepsTaken, bestFromStart, wallCount, reachedGoal };
     },
     reset,
     update,

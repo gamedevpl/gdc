@@ -1,23 +1,20 @@
 // Playable 3D Arcade Racing Simulation for Game Design Codex (/gdc/rubber-banding/)
-// Supports seamless instant Player control (WASD / Arrows + Space Nitro + X Spinout + Click-to-steer)
-// AND clean Auto-Demo cruise until the visitor touches a key or clicks the track!
+// Larger ~74-unit GP stadium circuit, WASD/Arrows + Space Nitro + X Spinout + Click-to-steer + Web Audio SFX!
 import { sampleTrack, TRACK_LENGTH, START_S, TRACK_HW } from "./track-renderer.js";
 
 export const CAR_PRESETS = [
-  { id: 0, name: "YOU",   isPlayer: true,  livery: [0.06, 0.90, 0.62], lane: -0.58, baseSpeed: 10.6 },
-  { id: 1, name: "AI #1", isPlayer: false, livery: [0.94, 0.16, 0.24], lane:  0.58, baseSpeed: 10.45 },
-  { id: 2, name: "AI #2", isPlayer: false, livery: [0.98, 0.64, 0.08], lane: -0.18, baseSpeed: 10.35 },
-  { id: 3, name: "AI #3", isPlayer: false, livery: [0.24, 0.50, 0.98], lane:  0.22, baseSpeed: 10.25 },
+  { id: 0, name: "YOU",   isPlayer: true,  livery: [0.06, 0.90, 0.62], lane: -0.78, baseSpeed: 13.8 },
+  { id: 1, name: "AI #1", isPlayer: false, livery: [0.94, 0.16, 0.24], lane:  0.78, baseSpeed: 13.6 },
+  { id: 2, name: "AI #2", isPlayer: false, livery: [0.98, 0.64, 0.08], lane: -0.25, baseSpeed: 13.45 },
+  { id: 3, name: "AI #3", isPlayer: false, livery: [0.24, 0.50, 0.98], lane:  0.28, baseSpeed: 13.3 },
 ];
 
-// Find closest arc-length s and signed lateral lane offset for free-driving player car!
 function projectWorldToTrack(x, z, hintS) {
   let bestS = hintS;
   let bestD2 = Infinity;
-  // Local search around hintS (+/- 8 units) so lap count stays strictly continuous!
-  const STEPS = 32;
+  const STEPS = 36;
   for (let i = -STEPS; i <= STEPS; i++) {
-    const s = hintS + (i / STEPS) * 7.5;
+    const s = hintS + (i / STEPS) * 11.0;
     const st = sampleTrack(s);
     const dx = x - st.x, dz = z - st.z;
     const d2 = dx * dx + dz * dz;
@@ -29,17 +26,19 @@ function projectWorldToTrack(x, z, hintS) {
   return { s: bestS, lat, st };
 }
 
-export function createRubberBandSim() {
+export function createRubberBandSim(audio = null) {
   let rubberBandOn = true;
-  let playerControl = false; // switches to true immediately on WASD / Arrows / Space / Click-steer!
+  let playerControl = false;
   let strength = 1.0;
   let time = 0;
-  let nitro = 1.0; // 0..1 rechargeable player turbo meter
-  let steerTarget = null; // optional click-to-drive target point on track
+  let nitro = 1.0;
+  let prevNitroOn = false;
+  let prevLap = 1;
+  let steerTarget = null;
 
   const cars = CAR_PRESETS.map((p, i) => ({
     ...p,
-    s: START_S - i * 1.9,
+    s: START_S - i * 2.4,
     speed: p.baseSpeed,
     speedMult: 1.0,
     laneCur: p.lane,
@@ -68,15 +67,15 @@ export function createRubberBandSim() {
   cars.forEach(syncCarFromTrack);
 
   function spawnCrashBurst(car) {
-    for (let i = 0; i < 22; i++) {
-      const a = (i / 22) * Math.PI * 2 + Math.random() * 0.2;
-      const spd = 1.5 + Math.random() * 3.6;
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2 + Math.random() * 0.2;
+      const spd = 1.8 + Math.random() * 4.2;
       const isSpark = i % 2 === 0;
       particles.push({
         x: car.x, y: 0.35 + Math.random() * 0.22, z: car.z,
-        vx: Math.cos(a) * spd, vy: 1.5 + Math.random() * 2.4, vz: Math.sin(a) * spd,
-        life: 0, maxLife: isSpark ? 0.55 + Math.random() * 0.25 : 0.85 + Math.random() * 0.35,
-        size: isSpark ? 0.14 : 0.34,
+        vx: Math.cos(a) * spd, vy: 1.6 + Math.random() * 2.5, vz: Math.sin(a) * spd,
+        life: 0, maxLife: isSpark ? 0.55 + Math.random() * 0.25 : 0.90 + Math.random() * 0.35,
+        size: isSpark ? 0.16 : 0.38,
         r: isSpark ? 2.6 : 0.92,
         g: isSpark ? 1.15 : 0.95,
         b: isSpark ? 0.22 : 1.0,
@@ -92,21 +91,25 @@ export function createRubberBandSim() {
     p.hitFlash = 1.0;
     p.speed *= 0.25;
     spawnCrashBurst(p);
+    audio?.crash?.();
   }
 
   function triggerBoost() {
     const p = cars[0];
     p.boostTimer = 2.2;
     p.crashTimer = 0;
+    audio?.nitro?.();
   }
 
   function reset() {
     time = 0;
     nitro = 1.0;
+    prevLap = 1;
+    prevNitroOn = false;
     steerTarget = null;
     particles.length = 0;
     cars.forEach((c, i) => {
-      c.s = START_S - i * 1.9;
+      c.s = START_S - i * 2.4;
       c.speed = c.baseSpeed;
       c.speedMult = 1.0;
       c.laneCur = c.lane;
@@ -139,7 +142,8 @@ export function createRubberBandSim() {
       steerTarget = null;
     }
 
-    // 1) Player car dynamics: REAL arcade steering when playing, smooth demo cruise when idle!
+    let usingNitro = false;
+
     if (p.crashTimer > 0) {
       p.crashTimer = Math.max(0, p.crashTimer - h);
       const frac = p.crashTimer / 1.55;
@@ -154,21 +158,19 @@ export function createRubberBandSim() {
         particles.push({
           x: p.x + (Math.random() - 0.5) * 0.4, y: 0.25, z: p.z + (Math.random() - 0.5) * 0.4,
           vx: (Math.random() - 0.5) * 0.7, vy: 1.1 + Math.random() * 0.8, vz: (Math.random() - 0.5) * 0.7,
-          life: 0, maxLife: 0.72, size: 0.30, r: 0.90, g: 0.93, b: 0.98, a: 0.42,
+          life: 0, maxLife: 0.72, size: 0.34, r: 0.90, g: 0.93, b: 0.98, a: 0.42,
         });
       }
     } else if (playerControl) {
       p.spinOffset *= Math.max(0, 1 - h * 9);
       p.hitFlash = Math.max(0, p.hitFlash - h * 3);
 
-      // Click-to-steer helper if visitor clicked a spot on the track
-      let steerIn = (lt ? 1 : 0) - (rt ? 1 : 0); // +1 = turn left (CCW in XZ), -1 = turn right
+      let steerIn = (lt ? 1 : 0) - (rt ? 1 : 0);
       let throttle = up ? 1 : dn ? -0.6 : 0;
       if (steerTarget && !up && !dn && !lt && !rt) {
         const dx = steerTarget[0] - p.x;
         const dz = steerTarget[2] - p.z;
-        const d = Math.hypot(dx, dz);
-        if (d < 1.2) {
+        if (Math.hypot(dx, dz) < 1.5) {
           steerTarget = null;
         } else {
           const desiredYaw = Math.atan2(dx, dz);
@@ -180,38 +182,31 @@ export function createRubberBandSim() {
         }
       }
 
-      // Rechargeable Nitro Boost!
-      const usingNitro = (boostKey && nitro > 0.04) || p.boostTimer > 0;
+      usingNitro = (boostKey && nitro > 0.04) || p.boostTimer > 0;
+      if (usingNitro && !prevNitroOn) audio?.nitro?.();
+      prevNitroOn = usingNitro;
+
       if (p.boostTimer > 0) p.boostTimer = Math.max(0, p.boostTimer - h);
-      if (boostKey && nitro > 0.04) {
-        nitro = Math.max(0, nitro - h * 0.42);
-      } else {
-        nitro = Math.min(1, nitro + h * 0.22);
-      }
+      if (boostKey && nitro > 0.04) nitro = Math.max(0, nitro - h * 0.38);
+      else nitro = Math.min(1, nitro + h * 0.22);
 
-      const maxSpd = usingNitro ? 15.6 : 11.8;
-      if (throttle > 0) {
-        p.speed = Math.min(maxSpd, p.speed + (usingNitro ? 24 : 15) * h);
-      } else if (throttle < 0) {
-        p.speed = Math.max(-3.5, p.speed - 18 * h);
-      } else {
-        // Gentle coasting deceleration (still keeps nice arcade flow)
-        p.speed *= Math.max(0, 1 - h * 1.15);
-      }
+      const maxSpd = usingNitro ? 19.6 : 15.2;
+      if (throttle > 0) p.speed = Math.min(maxSpd, p.speed + (usingNitro ? 28 : 18) * h);
+      else if (throttle < 0) p.speed = Math.max(-4.2, p.speed - 22 * h);
+      else p.speed *= Math.max(0, 1 - h * 1.10);
 
-      // Crisp arcade yaw steering proportional to speed
-      const turnRate = 3.15 * (0.35 + 0.65 * Math.min(1, Math.abs(p.speed) / 8.0));
+      const turnRate = 2.85 * (0.35 + 0.65 * Math.min(1, Math.abs(p.speed) / 9.5));
       p.yaw += steerIn * turnRate * h * (p.speed >= -0.1 ? 1 : -1);
 
       const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
       p.x += fx * p.speed * h;
       p.z += fz * p.speed * h;
 
-      // Smooth arcade curb-slide physics: keep car inside barriers & slide cleanly along curve (never dead-stop!)
+      // Smooth arcade curb-slide physics
       const proj = projectWorldToTrack(p.x, p.z, p.s);
       p.s = proj.s;
       p.laneCur = proj.lat;
-      const maxLat = TRACK_HW + 0.12;
+      const maxLat = TRACK_HW + 0.14;
       if (Math.abs(proj.lat) > maxLat) {
         const sign = Math.sign(proj.lat);
         p.x = proj.st.x + proj.st.rx * maxLat * sign;
@@ -221,25 +216,26 @@ export function createRubberBandSim() {
         while (dy > Math.PI) dy -= Math.PI * 2;
         while (dy < -Math.PI) dy += Math.PI * 2;
         p.yaw += dy * Math.min(1, h * 9.5);
-        if (Math.abs(dy) > 0.62 && Math.abs(p.speed) > 9.5 && p.hitFlash < 0.15) {
-          p.speed *= 0.76;
+        if (Math.abs(dy) > 0.62 && Math.abs(p.speed) > 10.5 && p.hitFlash < 0.15) {
+          p.speed *= 0.74;
           p.hitFlash = 0.65;
           spawnCrashBurst(p);
+          audio?.crash?.();
         } else {
-          p.speed *= Math.max(0.6, 1 - h * 1.4);
+          p.speed *= Math.max(0.6, 1 - h * 1.3);
         }
       }
 
-      p.wheelAngle += p.speed * h * 3.8;
+      p.wheelAngle += p.speed * h * 3.6;
       p.boostGlow = usingNitro ? 1.0 : Math.max(0, p.boostGlow - h * 5);
       p.brakeGlow = dn ? 0.9 : Math.max(0, p.brakeGlow - h * 5);
     } else {
-      // Smooth Auto-Demo cruise until visitor drives!
       let pTargetSpeed = p.baseSpeed * (1.0 + 0.04 * Math.sin(time * 0.9));
       if (p.boostTimer > 0) {
         p.boostTimer = Math.max(0, p.boostTimer - h);
         pTargetSpeed = p.baseSpeed * 1.44;
         p.boostGlow = 1.0;
+        usingNitro = true;
       } else {
         p.boostGlow *= Math.max(0, 1 - h * 5);
       }
@@ -247,10 +243,13 @@ export function createRubberBandSim() {
       p.brakeGlow *= Math.max(0, 1 - h * 5);
       p.speed += (pTargetSpeed - p.speed) * Math.min(1, h * 4.5);
       p.s += p.speed * h;
-      p.wheelAngle += p.speed * h * 3.8;
-      p.laneCur += (p.lane + Math.sin(time * 0.7) * 0.22 - p.laneCur) * Math.min(1, h * 2.0);
+      p.wheelAngle += p.speed * h * 3.6;
+      p.laneCur += (p.lane + Math.sin(time * 0.7) * 0.30 - p.laneCur) * Math.min(1, h * 2.0);
       syncCarFromTrack(p);
     }
+
+    // Continuous engine purr when driving (silent in idle auto-demo until user interacts!)
+    audio?.setEngine?.(playerControl ? Math.min(1, Math.abs(p.speed) / 16.0) : 0, usingNitro);
 
     // 2) AI Rivals with explicit Elastic Rubber Banding!
     const rubberBands = [];
@@ -263,13 +262,13 @@ export function createRubberBandSim() {
       let tension = 0;
       let mode = "boost";
       if (rubberBandOn) {
-        if (gap < -1.4) {
-          const t = Math.min(1.0, (-gap - 1.4) / 9.5);
-          mult = 1.0 + 0.44 * t;
+        if (gap < -2.0) {
+          const t = Math.min(1.0, (-gap - 2.0) / 14.5);
+          mult = 1.0 + 0.45 * t;
           tension = t;
           mode = "boost";
-        } else if (gap > 1.4) {
-          const t = Math.min(1.0, (gap - 1.4) / 9.5);
+        } else if (gap > 2.0) {
+          const t = Math.min(1.0, (gap - 2.0) / 14.5);
           mult = 1.0 - 0.38 * t;
           tension = t;
           mode = "slow";
@@ -279,9 +278,9 @@ export function createRubberBandSim() {
       const aiTarget = c.baseSpeed * c.speedMult * (1.0 + 0.03 * Math.sin(time * 1.15 + i * 2.1));
       c.speed += (aiTarget - c.speed) * Math.min(1, h * 4.5);
       c.s += c.speed * h;
-      c.wheelAngle += c.speed * h * 3.8;
-      c.laneCur += (c.lane + Math.sin(time * 0.85 + i * 1.8) * 0.26 - c.laneCur) * Math.min(1, h * 2.0);
-      c.laneCur = Math.max(-TRACK_HW * 0.62, Math.min(TRACK_HW * 0.62, c.laneCur));
+      c.wheelAngle += c.speed * h * 3.6;
+      c.laneCur += (c.lane + Math.sin(time * 0.85 + i * 1.8) * 0.36 - c.laneCur) * Math.min(1, h * 2.0);
+      c.laneCur = Math.max(-TRACK_HW * 0.65, Math.min(TRACK_HW * 0.65, c.laneCur));
 
       const targetBoost = (rubberBandOn && mode === "boost" && tension > 0.08) ? tension : 0;
       const targetBrake = (rubberBandOn && mode === "slow" && tension > 0.08) ? tension : 0;
@@ -289,30 +288,28 @@ export function createRubberBandSim() {
       c.brakeGlow += (targetBrake - c.brakeGlow) * Math.min(1, h * 6.0);
       syncCarFromTrack(c);
 
-      // Gentle car-to-car bump between player & AI for physical arcade feel!
       if (playerControl && p.crashTimer <= 0) {
         const ddx = p.x - c.x, ddz = p.z - c.z;
         const dd = Math.hypot(ddx, ddz);
-        if (dd > 0.01 && dd < 0.92) {
-          const push = (0.92 - dd) * 0.5;
+        if (dd > 0.01 && dd < 0.96) {
+          const push = (0.96 - dd) * 0.5;
           p.x += (ddx / dd) * push;
           p.z += (ddz / dd) * push;
         }
       }
 
-      if (strength > 0.02 && Math.abs(gap) > 1.0 && Math.abs(gap) < TRACK_LENGTH * 0.46) {
+      if (strength > 0.02 && Math.abs(gap) > 1.4 && Math.abs(gap) < TRACK_LENGTH * 0.46) {
         rubberBands.push({
           carId: c.id,
           x0: p.x, z0: p.z,
           x1: c.x, z1: c.z,
           tension,
           mode,
-          alpha: strength * Math.min(1.0, (Math.abs(gap) - 1.0) / 2.2),
+          alpha: strength * Math.min(1.0, (Math.abs(gap) - 1.4) / 2.6),
         });
       }
     }
 
-    // 3) Advance particles
     for (let i = particles.length - 1; i >= 0; i--) {
       const pt = particles[i];
       pt.life += h;
@@ -323,13 +320,15 @@ export function createRubberBandSim() {
       pt.a = (1 - pt.life / pt.maxLife) * 0.72;
     }
 
-    // Compute live race rank & lap!
     let rank = 1;
     for (let i = 1; i < cars.length; i++) if (cars[i].s > p.s) rank++;
     const lap = Math.max(1, Math.floor((p.s - START_S) / TRACK_LENGTH) + 1);
-    const leaderGap = Math.round(Math.max(...cars.slice(1).map(c => c.s)) - p.s);
+    if (lap > prevLap) {
+      prevLap = lap;
+      if (playerControl) audio?.lapChime?.();
+    }
 
-    return { time, cars, rubberBands, particles, rubberBandOn, playerControl, nitro, rank, lap, leaderGap };
+    return { time, cars, rubberBands, particles, rubberBandOn, playerControl, nitro, rank, lap };
   }
 
   return {
@@ -339,9 +338,16 @@ export function createRubberBandSim() {
     triggerBoost,
     setSteerTarget(pt) { playerControl = true; steerTarget = pt; },
     getRubberBandOn: () => rubberBandOn,
-    setRubberBandOn: (v) => { rubberBandOn = !!v; },
+    setRubberBandOn: (v) => {
+      rubberBandOn = !!v;
+      audio?.elasticTwang?.(rubberBandOn);
+    },
     getPlayerControl: () => playerControl,
-    setPlayerControl: (v) => { playerControl = !!v; steerTarget = null; },
+    setPlayerControl: (v) => {
+      playerControl = !!v;
+      steerTarget = null;
+      if (!playerControl) audio?.setEngine?.(0, false);
+    },
     getCars: () => cars,
   };
 }

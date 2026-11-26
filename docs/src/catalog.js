@@ -16,16 +16,16 @@ export const CODEX_ENTRIES = [
       pl: "AI WYŚCIGOWE · GRYWALNA MINI-GRA #03",
     },
     question: {
-      en: "Drive the green car yourself and feel AI speed stretch like a rubber band.",
-      pl: "Poprowadź zielone auto sam i poczuj, jak gumka rozciąga tempo AI.",
+      en: "Drive the GP circuit in Follow-Cam and feel AI speed stretch like a rubber band.",
+      pl: "Przejedź tor GP z kamerą Follow-Cam i poczuj, jak gumka rozciąga tempo AI.",
     },
     note: {
-      en: "Drive with WASD / Arrows and Space for Nitro. Pull far ahead and rivals boost onto your bumper; crash into a wall and leaders quietly brake — toggle Rubber Band OFF to feel the gap explode.",
-      pl: "Jedź WASD / Strzałkami, Spacja = Nitro. Gdy uciekniesz, rywale dostają dopalacz; gdy wjedziesz w bandę, liderzy hamują — wyłącz Gumkę, żeby poczuć różnicę.",
+      en: "Drive with WASD / Arrows and Space for Nitro. Camera follows your car automatically (C toggles Overview). Pull ahead and rivals boost onto your bumper; toggle Rubber Band OFF to feel the gap explode.",
+      pl: "Jedź WASD / Strzałkami, Spacja = Nitro. Kamera automatycznie podąża za autem (C przełącza widok całego toru). Ucieknij albo wjedź w bandę i sprawdź różnicę z Gumką WŁ vs WYŁ.",
     },
     hint: {
-      en: "WASD / Arrows = Drive · Space = Nitro · X = Spinout · Click track to steer · Drag to orbit",
-      pl: "WASD / Strzałki = Jazda · Spacja = Nitro · X = Poślizg · Kliknij tor = skręt · Przeciągnij = kamera",
+      en: "WASD / Arrows = Drive · Space = Nitro · C = Follow/Track Cam · X = Spinout · M/B = Audio",
+      pl: "WASD / Strzałki = Jazda · Spacja = Nitro · C = Kamera Follow/Tor · X = Poślizg · M/B = Dźwięk",
     },
   },
   {
@@ -43,16 +43,16 @@ export const CODEX_ENTRIES = [
       pl: "AI WALKI · GRYWALNA MINI-GRA #02",
     },
     question: {
-      en: "Fight 5 skeletons yourself: winnable with 1 token, brutal chaos with tokens OFF.",
-      pl: "Walcz sam z 5 szkieletami: uczciwy pojedynek z 1 tokenem vs masakra bez tokenów.",
+      en: "Fight 5 skeletons with 3-hit combos, parries & dodge rolls: fair with 1 token, chaos with OFF.",
+      pl: "Walcz z 5 szkieletami (3-ciosowe combo, parowanie, unik): fair z 1 tokenem, chaos bez tokenów.",
     },
     note: {
-      en: "Move your Knight with WASD, Left-Click (or J) to slash, hold Space (or Right-Click) to block & parry. Survive easily with 1 Token, then switch Tokens OFF to feel 5 enemies dogpile at once.",
-      pl: "Chodź Rycerzem (WASD / Strzałki), LPM lub J = cięcie mieczem, Spacja lub PPM = blok tarczą i parowanie. Z 1 tokenem dasz radę — wyłącz tokeny i zobacz, jak rzucają się naraz.",
+      en: "Move with WASD, Left-Click / J for a 3-hit combo, hold Space / Right-Click when you see '! PARRY NOW !' for a Perfect Parry, and Shift to Dodge Roll. Try 1 Token vs Tokens OFF.",
+      pl: "Chodź WASD, LPM / J robi 3-ciosowe combo, Spacja / PPM przy błysku '! PARRY NOW !' daje Perfect Parry, a Shift robi unik. Porównaj 1 Token vs Bez tokenów.",
     },
     hint: {
-      en: "WASD / Arrows = Move · Left-Click / J = Slash · Space / Right-Click = Block & Parry · Drag = Orbit",
-      pl: "WASD / Strzałki = Ruch · LPM / J = Cięcie · Spacja / PPM = Blok i parowanie · Przeciągnij = kamera",
+      en: "WASD = Move · Click / J = 3-Hit Combo · Space / Right-Click = Block & Parry · Shift = Dodge · M/B = Audio",
+      pl: "WASD = Ruch · LPM / J = 3-ciosowe Combo · Spacja / PPM = Blok/Parowanie · Shift = Unik · M/B = Dźwięk",
     },
   },
   {
@@ -70,16 +70,16 @@ export const CODEX_ENTRIES = [
       pl: "PATHFINDING · GRYWALNA MINI-GRA #01",
     },
     question: {
-      en: "Walk the maze yourself, paint walls live, or race the distance numbers to 0.",
-      pl: "Przejdź labirynt sam, rysuj ściany na żywo albo ścigaj się z liczbami do 0.",
+      en: "Paint & erase 3D maze walls by dragging, move the Goal, or walk the numbers to 0.",
+      pl: "Rysuj i usuwaj ściany 3D przeciągnięciem myszki, przestawiaj Metę albo przejdź labirynt sam.",
     },
     note: {
-      en: "Use WASD / Arrows to walk the hero yourself while numbers count steps to Goal (0) live, click any tile to add/remove stone walls, Shift+Click to move Goal, or hit Auto-Solve.",
-      pl: "Chodź bohaterem (WASD / Strzałki) — liczby na żywo liczą kroki do Mety (0). Kliknij kafelek, żeby postawić lub usunąć ścianę, Shift+Klik przenosi Metę, albo włącz Auto-Solve.",
+      en: "Click & drag directly across tiles to paint or erase stone walls live while distance numbers recalculate instantly. Use Clear to design from scratch, Shift+Click to move Goal (0), or walk with WASD.",
+      pl: "Kliknij i przeciągnij myszką po kafelkach, żeby malować albo gumkować ściany 3D na żywo. Użyj Wyczyść, żeby narysować własny labirynt od zera, Shift+Klik przenosi Metę, a WASD chodzi bohaterem.",
     },
     hint: {
-      en: "WASD / Arrows = Walk · Click tile = Wall · Shift+Click = Move Goal · Space = Auto-Solve · Drag = Orbit",
-      pl: "WASD / Strzałki = Chodzenie · Klik = Ściana · Shift+Klik = Meta · Spacja = Auto-Solve · Przeciągnij = kamera",
+      en: "Click & Drag = Paint/Erase Walls · Right-Drag = Orbit · Shift+Click = Move Goal · WASD = Walk · Space = Auto-Solve",
+      pl: "Przeciągnij LPM = Rysuj/Usuń ściany · PPM = Kamera · Shift+Klik = Meta · WASD = Chodzenie · Spacja = Auto-Solve",
     },
   },
 ];
