@@ -2,6 +2,33 @@
 
 export const CODEX_ENTRIES = [
   {
+    id: "stealth-cones",
+    accent: "#8b5cf6",
+    category: "Stealth AI",
+    thumb: "thumbs/stealth-cones.jpg",
+    module: "./entries/stealth-cones/index.js",
+    title: {
+      en: "Stealth Vision Cones (? → !)",
+      pl: "Stożki Wzroku i Skradanie (? → !)",
+    },
+    kicker: {
+      en: "STEALTH AI · PLAYABLE MINI-GAME #08",
+      pl: "AI SKRADANIA · GRYWALNA MINI-GRA #08",
+    },
+    question: {
+      en: "Why stealth guards are blind on purpose: 65° raycasted cones, ? → ! meters & distraction coins.",
+      pl: "Czemu strażnicy są celowo ślepi: stożki 65° z raycastem za filarami, pasek ? → ! i moneta-wabik.",
+    },
+    note: {
+      en: "Sneak around marble pillars with WASD + Shift (Crouch = silent & 2.2× slower spotting), steal all 3 Emerald Relics, and toss Brass Coins (E / Space / Click) to lure guards. Compare Game Stealth (65° + ? → !) vs Realistic Human Vision (140° · 0 ms instant spot — press Peek Test V!).",
+      pl: "Skradaj się za marmurowymi filarami (WASD + Shift kucanie = cisza i 2.2× wolniejsze wykrywanie), ukradnij 3 szmaragdowe relikty i rzucaj monety-wabiki (E / Spacja / Klik). Porównaj Skradanie Gry (65° + ? → !) z Realistycznym Wzrokiem (140° · 0 ms — kliknij Test Wychylenia V!).",
+    },
+    hint: {
+      en: "WASD = Move · Shift = Crouch (Silent) · E / Space / Click = Toss Coin · T = 65°/140° · V = Peek Test · X = X-Ray",
+      pl: "WASD = Ruch · Shift = Kucanie (Cisza) · E / Spacja / Klik = Moneta · T = 65°/140° · V = Test Wychylenia · X = X-Ray",
+    },
+  },
+  {
     id: "camera-deadzone",
     accent: "#eab308",
     category: "Camera Feel",

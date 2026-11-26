@@ -127,6 +127,12 @@ export function createAudioEngine() {
       lead: [587.33, 622.25, 739.99, 783.99, 739.99, 622.25, 587.33, 0, 880.0, 783.99, 739.99, 622.25, 587.33, 0, 440.0, 0],
       wave: "triangle",
     },
+    "stealth-cones": {
+      tempoMs: 190,
+      bass: [110.0, 0, 130.81, 0, 123.47, 0, 98.0, 0, 110.0, 0, 146.83, 0, 138.59, 0, 110.0, 0],
+      lead: [440.0, 0, 0, 523.25, 493.88, 0, 440.0, 0, 392.0, 0, 440.0, 523.25, 587.33, 0, 493.88, 0],
+      wave: "sine",
+    },
   };
 
   function playMusicTone(freq, dur, vol, type = "triangle", detune = 0) {
@@ -414,6 +420,25 @@ export function createAudioEngine() {
       if (!ensureContext()) return;
       playNoise(0.18, 1400, 1.4, 0.14, "bandpass");
       playTone(320, 640, 0.14, 0.12, "triangle");
+    },
+
+    // Stealth Museum SFX (Brass coin clink, ? suspicion rising tick, ! alert siren sting)
+    coinClink() {
+      if (!ensureContext()) return;
+      playTone(2180, 1840, 0.09, 0.14, "sine");
+      setTimeout(() => playTone(2640, 2320, 0.14, 0.11, "triangle"), 55);
+    },
+    suspicionTick(level = 0.5) {
+      if (!ensureContext()) return;
+      const f = 360 + level * 420;
+      playTone(f, f * 1.15, 0.09, 0.11, "triangle");
+    },
+    alertBuzzer() {
+      if (!ensureContext()) return;
+      // Classic sharp stealth "!" metal sting!
+      playTone(880, 1180, 0.12, 0.24, "sawtooth");
+      setTimeout(() => playTone(660, 440, 0.24, 0.22, "sawtooth"), 90);
+      playNoise(0.12, 1800, 2.5, 0.14, "bandpass");
     },
   };
 }
