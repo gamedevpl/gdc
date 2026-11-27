@@ -33,8 +33,28 @@ function drawBadge(ctx, x, y, text, bg, fg = "#ffffff", maxW = 1200) {
 }
 
 function drawCameraTelemetryHud(ctx, ow, st, lang) {
-  if (ow < 520) return;
   const pl = lang === "pl";
+  if (ow < 520) {
+    const jitterPct = clamp(st.jitterScore, 0, 1);
+    const stab = jitterPct < 0.08 ? (pl ? "STABILNA" : "ROCK SOLID") : (pl ? "TRZĘSIE!" : "SHAKING!");
+    const lbl = st.smartCam
+      ? (pl ? `SMART CAM · ${stab} · +${Math.abs(st.lookAheadVal).toFixed(1)}m` : `SMART CAM · ${stab} · +${Math.abs(st.lookAheadVal).toFixed(1)}m`)
+      : (pl ? `SZTYWNA · ${stab}` : `RIGID LOCKED · ${stab}`);
+    ctx.save();
+    ctx.font = "700 10.5px 'Courier New', monospace";
+    const tw = Math.min(ow - 24, ctx.measureText(lbl).width + 22);
+    const x = (ow - tw) * 0.5, y = 56;
+    ctx.fillStyle = "rgba(21,20,35,0.88)";
+    ctx.beginPath(); ctx.roundRect(x, y, tw, 24, 7); ctx.fill();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = st.smartCam ? "#38bdf8" : "#ef4444";
+    ctx.stroke();
+    ctx.fillStyle = st.smartCam ? "#7dd3fc" : "#fda4af";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(lbl, ow * 0.5, y + 12.5, tw - 14);
+    ctx.restore();
+    return;
+  }
   const boxW = Math.min(ow - 28, 412);
   const boxH = 92;
   const x = ow - boxW - 18;
@@ -421,11 +441,12 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     }
   }
 
-  function getCameraOverride() {
+  function getCameraOverride(baseCam) {
+    const pScale = baseCam ? clamp(baseCam.dist / 15.6, 1.0, 1.32) : 1.0;
     return {
       yaw: 0.04,
       pitch: 0.21,
-      dist: 15.6,
+      dist: 15.6 * pScale,
       targetX: camX,
       targetY: camY,
       targetZ: 0.0,

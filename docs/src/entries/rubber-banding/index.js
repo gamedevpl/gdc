@@ -38,8 +38,29 @@ function drawBadge(ctx, x, y, text, bg, fg = "#ffffff", maxW = 1200) {
 }
 
 function drawTopRaceHud(ctx, ow, state, followCam, lang) {
-  if (ow < 520) return;
   const pl = lang === "pl";
+  if (ow < 520) {
+    const bandTxt = state.rubberBandOn
+      ? (pl ? "GUMKA: WŁ" : "BAND: ON")
+      : (pl ? "GUMKA: WYŁ" : "BAND: OFF");
+    const lbl = pl
+      ? `P${state.rank}/4 · OKR. ${state.lap} · ${bandTxt}`
+      : `P${state.rank}/4 · LAP ${state.lap} · ${bandTxt}`;
+    ctx.save();
+    ctx.font = "700 10.5px 'Courier New', monospace";
+    const tw = Math.min(ow - 24, ctx.measureText(lbl).width + 22);
+    const x = (ow - tw) * 0.5, y = 56;
+    ctx.fillStyle = "rgba(21,20,35,0.88)";
+    ctx.beginPath(); ctx.roundRect(x, y, tw, 24, 7); ctx.fill();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = state.playerControl ? "#00e4ac" : "#eea75e";
+    ctx.stroke();
+    ctx.fillStyle = state.playerControl ? "#76ddaf" : "#ffe1a2";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(lbl, ow * 0.5, y + 12.5, tw - 14);
+    ctx.restore();
+    return;
+  }
   const boxW = Math.min(ow - 24, 435);
   const boxH = 38;
   const x = ow - boxW - 18;
@@ -249,7 +270,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
 
   return {
     id: "rubber-banding",
-    defaultCam: { yaw: 0.14, pitch: 0.72, dist: 41.5, targetX: 0, targetY: 0.5, targetZ: 0.2, fovDeg: 42 },
+    defaultCam: { yaw: 0.14, pitch: 0.72, dist: 44.5, targetX: 0, targetY: 0.5, targetZ: 0.2, fovDeg: 42 },
     getCameraOverride,
     getActions(lang) {
       const pl = lang === "pl";

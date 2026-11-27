@@ -49,8 +49,27 @@ function drawHpPips(ctx, x, y, hp, maxHp) {
 }
 
 function drawCombatHud(ctx, ow, state, lang) {
-  if (ow < 520) return;
   const pl = lang === "pl";
+  if (ow < 520) {
+    const tokTxt = state.tokenCount === 0
+      ? (pl ? "CHAOS (0 TOKENÓW)" : "TOKENS: OFF (CHAOS)")
+      : (pl ? `${state.tokenCount} TOKEN · PARRY ${state.parries}` : `${state.tokenCount} TOKEN · PARRIES ${state.parries}`);
+    const lbl = `HP ${Math.round(state.hp)} · ${tokTxt}`;
+    ctx.save();
+    ctx.font = "700 10.5px 'Courier New', monospace";
+    const tw = Math.min(ow - 24, ctx.measureText(lbl).width + 22);
+    const x = (ow - tw) * 0.5, y = 56;
+    ctx.fillStyle = "rgba(21,20,35,0.88)";
+    ctx.beginPath(); ctx.roundRect(x, y, tw, 24, 7); ctx.fill();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = state.tokenCount === 0 ? "#ef4444" : state.playerControl ? "#00e4ac" : "#eea75e";
+    ctx.stroke();
+    ctx.fillStyle = state.tokenCount === 0 ? "#fda4af" : state.playerControl ? "#76ddaf" : "#ffe1a2";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(lbl, ow * 0.5, y + 12.5, tw - 14);
+    ctx.restore();
+    return;
+  }
   const boxW = Math.min(ow - 24, 460);
   const boxH = 38;
   const x = ow - boxW - 18;
@@ -758,7 +777,9 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
 
     if (ovCtx) {
       ovCtx.clearRect(0, 0, ow, oh);
-      drawCombatHud(ovCtx, ow, { hp, kills, parries, playerControl }, lang);
+      if (!document.body.classList.contains("no-hud")) {
+        drawCombatHud(ovCtx, ow, { hp, kills, parries, playerControl, tokenCount }, lang);
+      }
 
       const pHero = project3D([hero.x, 2.55 + hero.y, hero.z], viewProj, ow, oh);
       if (pHero) {

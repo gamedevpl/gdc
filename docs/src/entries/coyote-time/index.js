@@ -31,8 +31,30 @@ function drawBadge(ctx, x, y, text, bg, fg = "#ffffff", maxW = 1200) {
 }
 
 function drawTimingGauge(ctx, ow, state, lang) {
-  if (ow < 520) return;
   const pl = lang === "pl";
+  if (ow < 520) {
+    const lbl = state.forgiving
+      ? (pl
+        ? `COYOTE 115ms · RATUNKI ${state.coyoteSaves + state.bufferSaves} · MONETY ${state.coinsCollected}/5`
+        : `COYOTE 115ms · SAVES ${state.coyoteSaves + state.bufferSaves} · COINS ${state.coinsCollected}/5`)
+      : (pl
+        ? `STRICT 0ms · ZJEDZONE ${state.missedInputs} · MONETY ${state.coinsCollected}/5`
+        : `STRICT 0ms · DROPPED ${state.missedInputs} · COINS ${state.coinsCollected}/5`);
+    ctx.save();
+    ctx.font = "700 10.5px 'Courier New', monospace";
+    const tw = Math.min(ow - 24, ctx.measureText(lbl).width + 22);
+    const x = (ow - tw) * 0.5, y = 56;
+    ctx.fillStyle = "rgba(21,20,35,0.88)";
+    ctx.beginPath(); ctx.roundRect(x, y, tw, 24, 7); ctx.fill();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = state.forgiving ? "#00e4ac" : "#f43f5e";
+    ctx.stroke();
+    ctx.fillStyle = state.forgiving ? "#76ddaf" : "#fda4af";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(lbl, ow * 0.5, y + 12.5, tw - 14);
+    ctx.restore();
+    return;
+  }
   const boxW = Math.min(ow - 28, 392);
   const boxH = 82;
   const x = ow - boxW - 18;
@@ -540,15 +562,16 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     camFollowY += (clamp(runner.y * 0.38 + 0.22, -0.8, 2.4) - camFollowY) * (1 - Math.exp(-4.2 * h));
   }
 
-  function getCameraOverride() {
+  function getCameraOverride(baseCam) {
+    const pScale = baseCam ? clamp(baseCam.dist / 14.8, 1.0, 1.48) : 1.0;
     if (!followCam) {
-      return { yaw: 0.04, pitch: 0.28, dist: 38.0, targetX: 22.0, targetY: 1.4, targetZ: 0.0, fovDeg: 40 };
+      return { yaw: 0.04, pitch: 0.28, dist: 38.0 * Math.min(1.32, pScale), targetX: 22.0, targetY: 1.4, targetZ: 0.0, fovDeg: 40 };
     }
     return {
       yaw: 0.09,
       pitch: 0.22,
-      dist: 15.2,
-      targetX: camFollowX,
+      dist: 15.2 * pScale,
+      targetX: camFollowX + (pScale > 1.05 ? 1.15 : 0.0),
       targetY: camFollowY,
       targetZ: 0.0,
       fovDeg: 38,

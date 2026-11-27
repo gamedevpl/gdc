@@ -169,7 +169,7 @@ function projectToScreen(vp, x, y, z, w, h) {
 export function createEntry(gl, { requestHudRefresh, audio } = {}) {
   const renderer = createMuseumRenderer(gl);
 
-  const defaultCam = { yaw: 0.0, pitch: 0.86, dist: 19.6, targetX: 0.0, targetY: 0.25, targetZ: 0.35, fovDeg: 40 };
+  const defaultCam = { yaw: 0.0, pitch: 0.86, dist: 21.4, targetX: 0.0, targetY: 0.25, targetZ: 0.35, fovDeg: 40 };
 
   let time = 0;
   let realisticMode = false; // false = Game Stealth (65° + ?->! meter), true = Realistic Human Vision (140° + 0ms instant!)

@@ -43,8 +43,30 @@ function drawBadge(ctx, x, y, text, bg, fg = "#ffffff", maxW = 1200) {
 }
 
 function drawDualHealthHud(ctx, ow, st, lang) {
-  if (ow < 520) return;
   const pl = lang === "pl";
+  if (ow < 520) {
+    const lbl = st.mercyOn
+      ? (pl
+        ? `HUD ${Math.round(st.hudHp)}% · REAL ${Math.round(st.realHp)}% · 1HP-SAVE ${st.oneHpSaves}`
+        : `HUD ${Math.round(st.hudHp)}% · REAL ${Math.round(st.realHp)}% · 1HP SAVES ${st.oneHpSaves}`)
+      : (pl
+        ? `UCZCIWE HP ${Math.round(st.hudHp)}% · ZGONY ${st.deaths}`
+        : `HONEST HP ${Math.round(st.hudHp)}% · K.O.s ${st.deaths}`);
+    ctx.save();
+    ctx.font = "700 10.5px 'Courier New', monospace";
+    const tw = Math.min(ow - 24, ctx.measureText(lbl).width + 22);
+    const x = (ow - tw) * 0.5, y = 56;
+    ctx.fillStyle = "rgba(15,17,32,0.90)";
+    ctx.beginPath(); ctx.roundRect(x, y, tw, 24, 7); ctx.fill();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = st.shieldActive ? "#2dd4bf" : (st.hudHp <= 25 ? "#f43f5e" : "#38bdf8");
+    ctx.stroke();
+    ctx.fillStyle = st.shieldActive ? "#5eead4" : (st.hudHp <= 25 ? "#fda4af" : "#7dd3fc");
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(lbl, ow * 0.5, y + 12.5, tw - 14);
+    ctx.restore();
+    return;
+  }
   const boxW = Math.min(ow - 28, 412);
   const boxH = st.xrayOn ? 116 : 64;
   const x = ow - boxW - 18;

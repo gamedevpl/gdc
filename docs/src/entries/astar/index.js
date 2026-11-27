@@ -86,8 +86,29 @@ function drawBadge(ctx, x, y, text, bg, fg = "#ffffff", maxW = 1200) {
 }
 
 function drawMazeHud(ctx, ow, state, lang) {
-  if (ow < 520) return;
   const pl = lang === "pl";
+  const dHere = state.distHere >= 0 ? state.distHere : "∞";
+  if (ow < 520) {
+    const lbl = state.blocked
+      ? (pl ? "BRAK DROGI · USUŃ ŚCIANĘ" : "PATH BLOCKED · ERASE WALL")
+      : state.playerMode
+        ? (pl ? `KROKI: ${state.stepsTaken} · DO METY: ${dHere}` : `STEPS: ${state.stepsTaken} · TO GOAL: ${dHere}`)
+        : (pl ? `OPTIMUM: ${state.bestFromStart} · KLIKAJ KAFLE` : `BEST: ${state.bestFromStart} · TAP TILES TO EDIT`);
+    ctx.save();
+    ctx.font = "700 10.5px 'Courier New', monospace";
+    const tw = Math.min(ow - 24, ctx.measureText(lbl).width + 22);
+    const x = (ow - tw) * 0.5, y = 56;
+    ctx.fillStyle = "rgba(21,20,35,0.88)";
+    ctx.beginPath(); ctx.roundRect(x, y, tw, 24, 7); ctx.fill();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = state.blocked ? "#ef4444" : state.playerMode ? "#00e4ac" : "#38bdf8";
+    ctx.stroke();
+    ctx.fillStyle = state.blocked ? "#fca5a5" : state.playerMode ? "#76ddaf" : "#bae6fd";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(lbl, ow * 0.5, y + 12.5, tw - 14);
+    ctx.restore();
+    return;
+  }
   const boxW = Math.min(ow - 24, 435);
   const boxH = 38;
   const x = ow - boxW - 18;
@@ -101,7 +122,6 @@ function drawMazeHud(ctx, ow, state, lang) {
   ctx.strokeStyle = state.blocked ? "#ef4444" : state.playerMode ? "#00e4ac" : "#38bdf8";
   ctx.stroke();
 
-  const dHere = state.distHere >= 0 ? state.distHere : "∞";
   let lbl = "";
   if (state.blocked) {
     lbl = pl ? "BRAK DROGI! Usuń jedną ze ścian" : "PATH BLOCKED! Erase a wall to open route";
@@ -465,7 +485,9 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       ovCtx.clearRect(0, 0, ow, oh);
       const distHere = dist[pTile.z * MAZE_W + pTile.x];
       const blocked = playerMode ? distHere < 0 : bestFromStart < 0;
-      drawMazeHud(ovCtx, ow, { playerMode, stepsTaken, distHere, bestFromStart: Math.max(0, bestFromStart), blocked }, lang);
+      if (!document.body.classList.contains("no-hud")) {
+        drawMazeHud(ovCtx, ow, { playerMode, stepsTaken, distHere, bestFromStart: Math.max(0, bestFromStart), blocked }, lang);
+      }
 
       // Draw crisp projected hover tile outline so maze editing feels snappy like a real level editor!
       if (hoverTile && tool !== "orbit") {

@@ -55,8 +55,28 @@ function drawHpPips(ctx, x, y, hp, maxHp) {
 }
 
 function drawFrameTimelineHud(ctx, ow, st, lang) {
-  if (ow < 520) return;
   const pl = lang === "pl";
+  if (ow < 520) {
+    const lbl = st.hitstopActive
+      ? (pl ? `⚡ ZAMROŻONO ${st.lastFreezeMs} ms` : `⚡ HITSTOP FREEZE ${st.lastFreezeMs} ms`)
+      : st.juiceOn
+        ? (pl ? `JUICE WŁ · HITSTOP ${st.effectiveMs}ms · CIOSY ${st.hits}` : `JUICE ON · HITSTOP ${st.effectiveMs}ms · HITS ${st.hits}`)
+        : (pl ? `RAW 0ms · ZERO JUICE · CIOSY ${st.hits}` : `RAW 0ms · NO JUICE · HITS ${st.hits}`);
+    ctx.save();
+    ctx.font = "700 10.5px 'Courier New', monospace";
+    const tw = Math.min(ow - 24, ctx.measureText(lbl).width + 22);
+    const x = (ow - tw) * 0.5, y = 56;
+    ctx.fillStyle = "rgba(21,20,35,0.88)";
+    ctx.beginPath(); ctx.roundRect(x, y, tw, 24, 7); ctx.fill();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = st.hitstopActive ? "#fbbf24" : (st.juiceOn ? "#f59e0b" : "#94a3b8");
+    ctx.stroke();
+    ctx.fillStyle = st.hitstopActive ? "#fde047" : (st.juiceOn ? "#ffe1a2" : "#cbd5e1");
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(lbl, ow * 0.5, y + 12.5, tw - 14);
+    ctx.restore();
+    return;
+  }
   const boxW = Math.min(ow - 28, 410);
   const boxH = 84;
   const x = ow - boxW - 18;
