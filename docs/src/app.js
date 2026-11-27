@@ -73,6 +73,8 @@ function applyEntryCam(base) {
   Object.assign(renderCam, cam);
 }
 
+const SVG_CODE_ICON = `<svg viewBox="0 0 16 12" width="13" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 2 1.5 6 5 10"/><line x1="9.5" y1="1.5" x2="6.5" y2="10.5"/><polyline points="11 2 14.5 6 11 10"/></svg>`;
+
 let cardCollapsed = window.matchMedia("(max-width: 780px)").matches;
 function ensureCardCollapseUi() {
   const card = document.querySelector(".card");
@@ -81,8 +83,19 @@ function ensureCardCollapseUi() {
   const title = $("entryTitle");
   const head = document.createElement("div");
   head.className = "card-head-row";
-  const textWrap = document.createElement("div");
-  textWrap.className = "card-head-text";
+  const actions = document.createElement("div");
+  actions.className = "card-head-actions";
+
+  let srcLink = $("sourceLink");
+  if (!srcLink) {
+    srcLink = document.createElement("a");
+    srcLink.id = "sourceLink";
+    srcLink.target = "_blank";
+    srcLink.rel = "noopener";
+  }
+  srcLink.className = "card-source";
+  srcLink.innerHTML = `${SVG_CODE_ICON}<span id="sourceLabel">Source</span>`;
+
   const btn = document.createElement("button");
   btn.id = "cardToggle";
   btn.type = "button";
@@ -98,8 +111,8 @@ function ensureCardCollapseUi() {
     }
   });
   card.insertBefore(head, kicker);
-  textWrap.append(kicker, title);
-  head.append(textWrap, btn);
+  actions.append(srcLink, btn);
+  head.append(kicker, actions, title);
   syncCardCollapse();
 }
 
@@ -292,7 +305,15 @@ function renderHud() {
   const idx = CODEX_ENTRIES.findIndex(e => e.id === activeMeta.id) + 1;
   $("pickerCount").textContent = `${idx}/${CODEX_ENTRIES.length}`;
   $("pickerDot").style.background = activeMeta.accent;
-  $("sourceLink").href = `https://github.com/gamedevpl/gdc/tree/main/docs/src/entries/${activeMeta.id}`;
+  const srcLink = $("sourceLink");
+  if (srcLink) {
+    srcLink.href = `https://github.com/gamedevpl/gdc/tree/main/docs/src/entries/${activeMeta.id}`;
+    const srcLabel = $("sourceLabel");
+    if (srcLabel) srcLabel.textContent = lang === "pl" ? "Kod" : "Source";
+    const srcTip = lang === "pl" ? `Kod źródłowy: ${activeMeta.title[lang]} (GitHub)` : `Source code: ${activeMeta.title[lang]} (GitHub)`;
+    srcLink.title = srcTip;
+    srcLink.setAttribute("aria-label", srcTip);
+  }
 
   $("kicker").textContent = activeMeta.kicker[lang];
   $("entryTitle").textContent = activeMeta.title[lang];
