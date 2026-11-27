@@ -28,20 +28,28 @@ const ENTRY_TO_PALETTE = {
   "hitboxes-iframes": "feel",
   "animation-cancel": "feel",
   "camera-spring-arm": "feel",
+  "ik-foot-placement": "feel",
+  "step-up-slopes": "feel",
   "attack-tokens": "ai",
   "rubber-banding": "ai",
   "stealth-cones": "ai",
   "ai-director": "ai",
   "utility-ai": "ai",
+  "behavior-trees": "ai",
   "astar": "crowds",
   "boids-flocking": "crowds",
   "flow-field": "crowds",
   "quadtree-collisions": "crowds",
+  "fog-of-war": "crowds",
+  "steering-avoidance": "crowds",
   "bsp-dungeon": "systems",
   "pity-timer": "systems",
   "lag-compensation": "systems",
   "wfc-island": "systems",
   "frustum-culling": "systems",
+  "client-prediction": "systems",
+  "lod-billboards": "systems",
+  "object-pooling": "systems",
 };
 
 // Theme-specific preload manifests (keeps initial network cost tiny ~40-70 KB per diorama!)
@@ -68,6 +76,14 @@ const THEME_PRELOADS = {
   "utility-ai": ["alert_sting", "coin_pickup", "ui_switch_on", "ui_switch_off"],
   "animation-cancel": ["sword_slash", "hit_enemy", "sand_dash", "player_hurt", "ui_blocked", "ui_switch_on"],
   "camera-spring-arm": ["ui_switch_on", "ui_switch_off"],
+  "ik-foot-placement": ["ui_switch_on", "ui_switch_off"],
+  "client-prediction": ["coyote_save", "ui_switch_on", "ui_switch_off"],
+  "lod-billboards": ["ui_switch_on", "ui_switch_off"],
+  "behavior-trees": ["player_hurt", "coin_pickup", "ui_switch_on", "ui_switch_off"],
+  "object-pooling": ["ui_blocked", "ui_switch_on", "ui_switch_off"],
+  "fog-of-war": ["water_ripple", "ui_switch_on", "ui_switch_off"],
+  "steering-avoidance": ["car_crash", "coin_pickup", "ui_switch_on", "ui_switch_off"],
+  "step-up-slopes": ["jump", "ui_blocked", "ui_switch_on", "ui_switch_off"],
 };
 
 export function createAudioEngine() {

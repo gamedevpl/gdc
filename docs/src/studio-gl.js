@@ -62,6 +62,8 @@ void main() {
     } else if (mode == 4) {
       vec3 pv = vec3(0.0, 0.72, 0.0);
       p = rotX(p - pv, uPose.y) + pv;
+    } else if (mode == 5) {
+      p = rotX(p - uPivot.xyz, uPose.y) + uPivot.xyz;
     }
     p = rotY(p, uPose.x);
   }
@@ -216,6 +218,9 @@ void main() {
     } else if (mode == 4) {
       vec3 pv = vec3(0.0, 0.72, 0.0);
       p = rotX(p - pv, uPose.y) + pv;
+      n = rotX(n, uPose.y);
+    } else if (mode == 5) {
+      p = rotX(p - uPivot.xyz, uPose.y) + uPivot.xyz;
       n = rotX(n, uPose.y);
     }
     p = rotY(p, uPose.x);
@@ -392,7 +397,7 @@ export function drawBanner(ctx, text, color, timer, cssW) {
   ctx.fillStyle = color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text, cssW * 0.5, by + 15.5);
+  ctx.fillText(text, cssW * 0.5, by + 15.5, bw - 16);
   ctx.restore();
 }
 
@@ -413,7 +418,7 @@ export function drawMobilePill(ctx, text, color, cssW) {
   ctx.fillStyle = color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text, cssW * 0.5, py + 12.5);
+  ctx.fillText(text, cssW * 0.5, py + 12.5, tw - 12);
   ctx.restore();
 }
 

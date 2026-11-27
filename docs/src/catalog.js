@@ -10,6 +10,222 @@ export const CODEX_CATEGORIES = [
 
 export const CODEX_ENTRIES = [
   {
+    id: "step-up-slopes",
+    accent: "#ec4899",
+    category: "feel",
+    thumb: "thumbs/step-up-slopes.jpg",
+    module: "./entries/step-up-slopes/index.js",
+    title: {
+      en: "Character Controller: Step-Up & Slopes",
+      pl: "Kontroler Postaci: Krawężniki i Zbocza",
+    },
+    kicker: {
+      en: "PHYSICS FEEL · PLAYABLE MINI-GAME #30",
+      pl: "FIZYKA RUCHU · GRYWALNA MINI-GRA #30",
+    },
+    question: {
+      en: "Why heroes glide effortlessly over 28cm curbs yet slide cleanly off 58° cliffs instead of mountain-goating up walls.",
+      pl: "Czemu bohater płynnie wchodzi na krawężnik 28 cm, ale zsuwa się z klifu 58° zamiast wbiegać po pionowej ścianie.",
+    },
+    note: {
+      en: "Run across the 3-zone physics gauntlet with A/D (or press [V] for the 58° Cliff Test)! With Smart Controller ON [T], dual knee/shin rays auto-step up the 28cm curb, climb the 26° ramp smoothly, and slide cleanly off the 58° hazard cliff (>45° cap). Turn it OFF [T] to snag dead-stop on a tiny curb and horse-glitch straight up cliffs.",
+      pl: "Przebiegnij 3-strefowy tor testowy (A/D lub [V] Test Klifu 58°)! Ze Smart Kontrolerem [T] postać sama pokonuje próg 28 cm, płynnie idzie pod górę 26° i blokuje się na klifie 58° (>45°). Wyłącz [T], żeby zobaczyć zablokowanie na krawężniku i glitch wspinania po pionowym murze.",
+    },
+    hint: {
+      en: "A/D = Run Course · V = 58° Cliff Test · T = Smart Controller / Naive Capsule · R = Reset",
+      pl: "A/D = Biegnij · V = Test Klifu 58° · T = Smart Kontroler / Naiwna Kapsuła · R = Reset",
+    },
+  },
+  {
+    id: "steering-avoidance",
+    accent: "#f97316",
+    category: "crowds",
+    thumb: "thumbs/steering-avoidance.jpg",
+    module: "./entries/steering-avoidance/index.js",
+    title: {
+      en: "Steering & Obstacle Avoidance",
+      pl: "Steering i Omijanie Przeszkód",
+    },
+    kicker: {
+      en: "AGENT STEERING · PLAYABLE MINI-GAME #29",
+      pl: "STEROWANIE AI · GRYWALNA MINI-GRA #29",
+    },
+    question: {
+      en: "How AI hovercraft carve effortlessly through tight canyon pillars using 3 raycast whisker feelers instead of crashing head-first.",
+      pl: "Jak pojazdy AI płynnie slalomują między skalnymi filarami dzięki 3 wąsom raycastu zamiast rozbijać się o każdą przeszkodę.",
+    },
+    note: {
+      en: "Click anywhere in the canyon (or press [V] Flip Beacon) to send 6 hover-skiffs racing across the sandstone pillars! Watch their 3 cyan raycast whiskers flash amber on contact and push them laterally around rocks — toggle [T] to Blind Seek-Only to watch the whole squadron slam head-first into pillars.",
+      pl: "Kliknij kanion (albo wciśnij [V] Przerzuć Cel), żeby puścić 6 ścigaczy przez slalom z filarów! Patrz, jak 3 cyjanowe wąsy raycastu błyskają na pomarańczowo i płynnie odbijają tor lotu — przełącz [T] na ślepy Seek, żeby zobaczyć karambole.",
+    },
+    hint: {
+      en: "Click = Move Beacon · V = Flip Across Canyon · T = Whiskers / Blind Seek · X = Toggle Rays",
+      pl: "Klik = Przenieś Cel · V = Przerzuć Cel · T = Wąsy / Ślepy Seek · X = Promienie",
+    },
+  },
+  {
+    id: "fog-of-war",
+    accent: "#06b6d4",
+    category: "crowds",
+    thumb: "thumbs/fog-of-war.jpg",
+    module: "./entries/fog-of-war/index.js",
+    title: {
+      en: "Fog of War & RTS Vision",
+      pl: "Mgła Wojny (Fog of War w RTS)",
+    },
+    kicker: {
+      en: "RTS VISIBILITY · PLAYABLE MINI-GAME #28",
+      pl: "WIDOCZNOŚĆ RTS · GRYWALNA MINI-GRA #28",
+    },
+    question: {
+      en: "How strategy games separate Unexplored Fog, Explored Shroud memory & raycasted Live Vision behind solid stone ridges.",
+      pl: "Jak gry strategiczne rozdzielają Nieodkrytą Mgłę, Szarą Pamięć (Shroud) i Aktywny Wzrok z cieniami za murami.",
+    },
+    note: {
+      en: "Move your Hover-Scout with WASD or Click anywhere to clear the pitch-black Fog of War around stone mountain ridges! Explored tiles drop into cool-slate Shroud (remembering outposts while hiding live enemy raiders). Press [V] for an Orbital Radar Ping, or [T] for Map-Hack to expose all 5 hidden ambushers.",
+      pl: "Steruj zwiadowcą (WASD lub Klik), żeby odkrywać czarną mgłę wokół skalnych grzbietów! Odkryte pola przechodzą w szary Shroud (pamiętasz budynki, ale żywi wrogowie znikają). Wciśnij [V] po Skan Radaru albo [T] (Map-Hack), żeby odsłonić wszystkie 5 zasadzek.",
+    },
+    hint: {
+      en: "WASD / Click = Move Scout · V = Radar Scan Ping · T = Fog of War / Map-Hack · R = Reset",
+      pl: "WASD / Klik = Zwiad · V = Skan Radaru · T = Mgła Wojny / Map-Hack · R = Reset",
+    },
+  },
+  {
+    id: "object-pooling",
+    accent: "#f59e0b",
+    category: "systems",
+    thumb: "thumbs/object-pooling.jpg",
+    module: "./entries/object-pooling/index.js",
+    title: {
+      en: "Object Pooling vs GC Freeze Spikes",
+      pl: "Object Pooling kontra Zacięcia GC",
+    },
+    kicker: {
+      en: "MEMORY PERF · PLAYABLE MINI-GAME #27",
+      pl: "WYDAJNOŚĆ PAMIĘCI · GRYWALNA MINI-GRA #27",
+    },
+    question: {
+      en: "Why bullet-hell games recycle a pre-allocated Object Pool instead of new/delete so Garbage Collection never freezes your frame rate.",
+      pl: "Czemu gry bullet-hell recyklingują gotową pulę obiektów zamiast new/delete, żeby Garbage Collector nigdy nie zamrażał FPS-ów.",
+    },
+    note: {
+      en: "Watch the turret fire 140 plasma orbs while recycled shots zip back into the golden Pool Rack on the right (0 heap allocations, flat 8.3ms oscilloscope)! Toggle [T] to new/delete mode (or hit [V] Bullet Storm) and watch heap garbage climb to 100% — triggering real 195ms Stop-The-World crimson GC freezes!",
+      pl: "Patrz, jak wieżyczka strzela 140 kulami, a zużyte pociski wracają do złotej Puli po prawej (0 alokacji, płaski wykres 8.3 ms)! Przełącz [T] na new/delete (albo [V] Burzę Pocisków) i zobacz, jak pełna sterta wywołuje realne 195 ms zacinki Garbage Collectora.",
+    },
+    hint: {
+      en: "T = Object Pool / new-delete GC · V = Bullet Storm 2.5× · R = Reset",
+      pl: "T = Object Pool / new-delete GC · V = Burza Pocisków 2.5× · R = Reset",
+    },
+  },
+  {
+    id: "behavior-trees",
+    accent: "#10b981",
+    category: "ai",
+    thumb: "thumbs/behavior-trees.jpg",
+    module: "./entries/behavior-trees/index.js",
+    title: {
+      en: "Behavior Trees vs Spaghetti FSM",
+      pl: "Drzewa Zachowań (Behavior Trees)",
+    },
+    kicker: {
+      en: "HIERARCHICAL AI · PLAYABLE MINI-GAME #26",
+      pl: "HIERARCHIA AI · GRYWALNA MINI-GRA #26",
+    },
+    question: {
+      en: "Why modern game AI uses clean priority Selector trees that interrupt & recover gracefully instead of fragile state-machine spaghetti.",
+      pl: "Czemu nowoczesne AI w grach używa czystych drzew decyzyjnych z priorytetami zamiast kruchej plątaniny stanów FSM.",
+    },
+    note: {
+      en: "Watch the live Behavior Tree graph in the top-right HUD light up in sync with the 3D Vault Guard (Root Selector → 1. Heal → 2. Chase → 3. Patrol)! Click to move the Intruder or press [V] to drop the Guard to 22% HP — Branch #1 cleanly preempts Chase, heals up, and resumes. Switch [T] to Broken FSM to trigger a missing-edge deadlock!",
+      pl: "Obserwuj żywy graf Drzewa Zachowań w prawym górnym rogu sprzężony ze Strażnikiem 3D (Selector → 1. Leczenie → 2. Pościg → 3. Patrol)! Kliknij, by przestawić Intruza lub wciśnij [V] (22% HP) — gałąź #1 czysto przerywa pościg i wraca po uleczeniu. Włącz [T] zepsuty FSM, by wywołać deadlock!",
+    },
+    hint: {
+      en: "Click = Move Intruder · V = Damage Guard (22% HP) · T = Behavior Tree / Broken FSM · R = Reset",
+      pl: "Klik = Przenieś Intruza · V = Zrań Strażnika (22% HP) · T = Behavior Tree / Zepsuty FSM · R = Reset",
+    },
+  },
+  {
+    id: "lod-billboards",
+    accent: "#a855f7",
+    category: "systems",
+    thumb: "thumbs/lod-billboards.jpg",
+    module: "./entries/lod-billboards/index.js",
+    title: {
+      en: "Level of Detail (LOD) & Impostors",
+      pl: "Level of Detail (LOD) i Billboardy",
+    },
+    kicker: {
+      en: "MESH OPTIMIZATION · PLAYABLE MINI-GAME #25",
+      pl: "OPTYMALIZACJA SIATEK · GRYWALNA MINI-GRA #25",
+    },
+    question: {
+      en: "How open worlds draw vast valleys at 144 FPS: swapping distant 964-tri castles down to 148 tris, 24 tris, and 2-tri billboards.",
+      pl: "Jak otwarte światy trzymają 144 FPS: zamieniając dalekie zamki z 964 trójkątów na 148, 24 i w końcu płaski 2-trójkątowy billboard.",
+    },
+    note: {
+      en: "Drive the 3D camera down the Alpine Valley with W/S (or click [V] to frame all 4 tiers at once) and watch the real Blender LOD meshes swap live across concentric distance rings — cutting ~75% of all GPU triangles! Toggle [T] LOD OFF to draw every distant keep at full LOD0 detail.",
+      pl: "Jedź kamerą 3D przez dolinę (W/S albo kliknij [V], by zobaczyć wszystkie 4 poziomy naraz) i patrz na żywą podmianę modeli z Blendera (LOD0 → LOD1 → LOD2 → Billboard), tnącą ~75% trójkątów GPU! Wyłącz LOD [T], żeby narysować wszystko w pełnym detalu.",
+    },
+    hint: {
+      en: "W/S / Click = Drive Camera · V = Show All 4 Tiers · T = LOD ON/OFF · X = Color-Code Tiers",
+      pl: "W/S / Klik = Jedź Kamerą · V = Pokaż 4 Poziomy · T = LOD WŁ/WYŁ · X = Kolory Poziomów",
+    },
+  },
+  {
+    id: "client-prediction",
+    accent: "#38bdf8",
+    category: "systems",
+    thumb: "thumbs/client-prediction.jpg",
+    module: "./entries/client-prediction/index.js",
+    title: {
+      en: "Client-Side Prediction & Reconciliation",
+      pl: "Predykcja Klienta i Rekoncyliacja",
+    },
+    kicker: {
+      en: "MULTIPLAYER NETCODE · PLAYABLE MINI-GAME #24",
+      pl: "NETCODE SIECIOWY · GRYWALNA MINI-GRA #24",
+    },
+    question: {
+      en: "Why online movement feels 0ms instant at 200ms ping — and how servers replay buffered inputs after a rubber-band desync.",
+      pl: "Czemu sterowanie w sieci reaguje w 0 ms mimo pingu 200 ms — i jak klient odtwarza bufor klawiszy po desyncu serwera.",
+    },
+    note: {
+      en: "Steer the hover-skiff with WASD (or watch auto-slalom) while the cyan Server Ghost trails -200ms behind along your buffered input trail! Press [V] Inject Desync to watch Reconciliation snap and replay every unacked input. Switch [T] to Server-Wait OFF to feel unbearable 200ms input lag.",
+      pl: "Steruj ścigaczem (WASD albo auto-slalom), podczas gdy cyjanowy duch Serwera goni -200 ms za buforem pakietów! Wciśnij [V] Test Desync, by zobaczyć snap i odtworzenie bufora. Wyłącz Predykcję [T], żeby poczuć 200 ms opóźnienia na każdym klawiszu.",
+    },
+    hint: {
+      en: "WASD = Steer · V = Inject Desync (Reconcile!) · T = Prediction / Server-Wait · X = Cycle Ping ms",
+      pl: "WASD = Steruj · V = Test Desync (Snap+Replay) · T = Predykcja / Czekaj na Serwer · X = Ping ms",
+    },
+  },
+  {
+    id: "ik-foot-placement",
+    accent: "#2dd4bf",
+    category: "feel",
+    thumb: "thumbs/ik-foot-placement.jpg",
+    module: "./entries/ik-foot-placement/index.js",
+    title: {
+      en: "Inverse Kinematics (IK) Foot Placement",
+      pl: "Kinematyka Odwrotna (IK) na Schodach",
+    },
+    kicker: {
+      en: "CHARACTER ANIMATION · PLAYABLE MINI-GAME #23",
+      pl: "ANIMACJA POSTACI · GRYWALNA MINI-GRA #23",
+    },
+    question: {
+      en: "How 2-Bone analytical IK raycasts down to every stone stair tread, drops the pelvis, and bends knees so boots never clip or float.",
+      pl: "Jak analityczne IK 2 kości strzela raycastem w każdy stopień, obniża biodra i zgina kolana, żeby buty nigdy nie lewitowały ani nie wbijały się w schody.",
+    },
+    note: {
+      en: "Climb the temple stairs with A/D or hit [V] Freeze on Steps and flip [T] back and forth! With Foot IK ON, Law-of-Cosines joint angles lock both boots flush onto two different stair heights while dropping the pelvis. Turn IK OFF to see rigid canned animation clip deep into stone and float in mid-air.",
+      pl: "Wchodź po schodach (A/D lub [V] Pauza na Stopniach) i przełączaj [T] tam i z powrotem! Z Foot IK stopy idealnie siadają na dwóch różnych stopniach przy obniżonych biodrach. Wyłącz IK [T], a sztywna animacja wbije but w kamień i zawiesi drugą stopę w powietrzu.",
+    },
+    hint: {
+      en: "A/D / Click = Climb Stairs · V = Freeze Straddling Steps · T = Foot IK ON/OFF · X = Raycasts",
+      pl: "A/D / Klik = Chodź po Schodach · V = Pauza na Stopniach · T = Foot IK WŁ/WYŁ · X = Raycasty",
+    },
+  },
+  {
     id: "camera-spring-arm",
     accent: "#eab308",
     category: "feel",

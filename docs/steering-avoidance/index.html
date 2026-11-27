@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en" data-entry="steering-avoidance" data-subroute="1">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Steering &amp; Obstacle Avoidance — Game Design Codex | gamedev.pl</title>
+<meta name="description" content="How AI hovercraft carve effortlessly through tight canyon pillars using 3 raycast whisker feelers instead of crashing head-first.">
+<link rel="canonical" href="https://gamedevpl.github.io/gdc/steering-avoidance/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://gamedevpl.github.io/gdc/steering-avoidance/">
+<meta property="og:title" content="Steering &amp; Obstacle Avoidance — Game Design Codex">
+<meta property="og:description" content="How AI hovercraft carve effortlessly through tight canyon pillars using 3 raycast whisker feelers instead of crashing head-first.">
+<meta property="og:image" content="https://gamedevpl.github.io/gdc/thumbs/steering-avoidance.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Steering &amp; Obstacle Avoidance — Game Design Codex">
+<meta name="twitter:description" content="How AI hovercraft carve effortlessly through tight canyon pillars using 3 raycast whisker feelers instead of crashing head-first.">
+<meta name="twitter:image" content="https://gamedevpl.github.io/gdc/thumbs/steering-avoidance.jpg">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../style.css?v=17">
+</head>
+<body>
+<main>
+  <canvas id="c" aria-label="Interactive 3D Steering &amp; Obstacle Avoidance diorama"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+
+  <header>
+    <div class="brand">
+      <button id="menuBtn" class="menu-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="siteMenu" aria-label="Menu">
+        <svg viewBox="0 0 14 14" shape-rendering="crispEdges" aria-hidden="true">
+          <rect x="1" y="2" width="12" height="2" fill="currentColor"/>
+          <rect x="1" y="6" width="12" height="2" fill="currentColor"/>
+          <rect x="1" y="10" width="12" height="2" fill="currentColor"/>
+        </svg>
+      </button>
+      <h1>GAME DESIGN <em>CODEX</em></h1>
+    </div>
+    <div class="gdc-ribbon" id="codexRibbon" role="navigation" aria-label="Codex entries"></div>
+    <nav>
+      <button id="catalogBtn" class="gdc-picker" type="button" aria-haspopup="dialog" aria-expanded="false">
+        <span class="gdc-dot" id="pickerDot" aria-hidden="true"></span>
+        <span id="pickerName">Steering &amp; Obstacle Avoidance</span>
+        <span class="gdc-count" id="pickerCount">2/30</span>
+        <span class="gdc-caret" aria-hidden="true">▾</span>
+      </button>
+      <button id="lang" type="button" aria-label="Switch language">PL</button>
+    </nav>
+  </header>
+
+  <section class="stage">
+    <article class="card">
+      <p class="kicker" id="kicker"></p>
+      <h2 id="entryTitle"></h2>
+      <p id="entryNote"></p>
+      <div class="row">
+        <div class="actions-inline" id="entryActions"></div>
+        <button id="pauseBtn" type="button">Pause</button>
+        <button id="resetBtn" type="button" title="Reset (R)">Reset</button>
+      </div>
+      <p class="hint" id="hintLine"></p>
+    </article>
+  </section>
+</main>
+
+<div class="catalog-backdrop" id="catalogModal" role="dialog" aria-modal="true" aria-labelledby="catalogTitle" hidden>
+  <div class="catalog-box">
+    <div class="catalog-head">
+      <div>
+        <h2 id="catalogTitle">Game Design Codex</h2>
+        <p id="catalogSub"></p>
+      </div>
+      <button id="catalogClose" class="catalog-close" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="catalog-scroll">
+      <div class="catalog-grid" id="catalogGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div id="nogl" hidden>
+  <b>WebGL2 is required</b>
+  <p id="noglBody"></p>
+</div>
+
+<script type="module" src="../src/app.js?v=17"></script>
+</body>
+</html>
