@@ -1,8 +1,8 @@
 // Game Design Codex (GDC) shared application shell — sibling to FX Lab.
 // Fullscreen WebGL2 + 2D HUD, procedural Web Audio SFX/Music toggles, live keyboard/mouse gameplay, Follow-Cam & Shake!
-import { CODEX_CATEGORIES, CODEX_ENTRIES, getEntryMeta } from "./catalog.js?v=14";
+import { CODEX_CATEGORIES, CODEX_ENTRIES, getEntryMeta } from "./catalog.js?v=15";
 import { clamp, cameraBasisFromOrbit, screenRayToPlaneY } from "./gl-utils.js";
-import { createAudioEngine } from "./audio.js?v=14";
+import { createAudioEngine } from "./audio.js?v=15";
 import { initSiteMenu } from "./site-menu.js";
 
 const $ = (id) => document.getElementById(id);
@@ -346,29 +346,120 @@ function renderHud() {
   if (!$("catalogModal").hidden) renderCatalogModal();
 }
 
+let loadSeq = 0;
+let activeLoads = 0;
+let loaderEl = null;
+
+function ensureSceneLoader() {
+  if (loaderEl) return loaderEl;
+  const el = document.createElement("div");
+  el.id = "sceneLoader";
+  el.className = "scene-loader";
+  el.setAttribute("aria-live", "polite");
+  el.setAttribute("aria-hidden", "true");
+  el.innerHTML = `
+    <div class="scene-loader-card">
+      <div class="scene-loader-row">
+        <div class="scene-loader-spin" aria-hidden="true"></div>
+        <div class="scene-loader-text">
+          <div class="scene-loader-kicker" id="loaderKicker"></div>
+          <div class="scene-loader-title" id="loaderTitle"></div>
+        </div>
+      </div>
+      <div class="scene-loader-bar" aria-hidden="true"></div>
+      <div class="scene-loader-status" id="loaderStatus"></div>
+    </div>
+  `;
+  document.body.appendChild(el);
+  loaderEl = el;
+  return el;
+}
+
+function showSceneLoader(meta, quick) {
+  if (document.body.classList.contains("no-hud")) return;
+  const el = ensureSceneLoader();
+  el.style.setProperty("--loader-accent", meta.accent || "#f59e0b");
+  el.classList.toggle("is-quick", Boolean(quick));
+  $("loaderKicker").textContent = meta.kicker[lang];
+  $("loaderTitle").textContent = meta.title[lang];
+  $("loaderStatus").textContent = lang === "pl" ? "Kompilacja sceny 3D…" : "Loading 3D diorama…";
+  el.setAttribute("aria-hidden", "false");
+  el.classList.add("is-visible");
+}
+
+function hideSceneLoader() {
+  if (!loaderEl) return;
+  loaderEl.classList.remove("is-visible");
+  loaderEl.setAttribute("aria-hidden", "true");
+}
+
+function waitPaint(minMs = 0) {
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const rem = minMs - (performance.now() - t0);
+        if (rem > 4) setTimeout(resolve, rem);
+        else resolve();
+      });
+    });
+  });
+}
+
 async function loadEntry(id, pushHistory = false) {
   const meta = getEntryMeta(id);
-  activeMeta = meta;
-  keys.clear();
-  audio.setTheme(meta.id);
-  let inst = entryCache.get(meta.id);
-  if (!inst) {
-    const mod = await import(`${meta.module}?v=14`);
-    inst = mod.createEntry(gl, { requestHudRefresh: renderHud, audio });
-    entryCache.set(meta.id, inst);
-  }
-  activeEntry = inst;
-  applyEntryCam(inst.defaultCam);
-  paused = false;
+  if (activeEntry && activeMeta?.id === meta.id) return;
 
-  if (pushHistory && location.protocol.startsWith("http")) {
-    const rootPath = new URL(SITE_ROOT).pathname;
-    const targetUrl = `${rootPath}${meta.id}/${location.search}`;
-    try { history.replaceState(null, "", targetUrl); } catch {}
-  }
+  const seq = ++loadSeq;
+  activeLoads++;
+  const isCached = entryCache.has(meta.id);
+  const useVeil = !document.body.classList.contains("no-hud");
 
-  document.title = `${meta.title[lang]} — Game Design Codex | gamedev.pl`;
-  renderHud();
+  try {
+    if (useVeil) {
+      showSceneLoader(meta, isCached);
+      // Yield 2 animation frames so the browser actually paints the veil & spinner BEFORE synchronous WebGL shader compilation!
+      await waitPaint(isCached ? 55 : 90);
+      if (seq !== loadSeq) return;
+    }
+
+    activeMeta = meta;
+    keys.clear();
+    audio.setTheme(meta.id);
+    let inst = entryCache.get(meta.id);
+    if (!inst) {
+      const mod = await import(`${meta.module}?v=15`);
+      if (seq !== loadSeq) return;
+      inst = mod.createEntry(gl, { requestHudRefresh: renderHud, audio });
+      entryCache.set(meta.id, inst);
+    }
+    if (seq !== loadSeq) return;
+
+    activeEntry = inst;
+    applyEntryCam(inst.defaultCam);
+    paused = false;
+
+    if (pushHistory && location.protocol.startsWith("http")) {
+      const rootPath = new URL(SITE_ROOT).pathname;
+      const targetUrl = `${rootPath}${meta.id}/${location.search}`;
+      try { history.replaceState(null, "", targetUrl); } catch {}
+    }
+
+    document.title = `${meta.title[lang]} — Game Design Codex | gamedev.pl`;
+    renderHud();
+
+    // Render the very first GPU frame of the new scene behind the veil so fade-out reveals live 3D!
+    const c = resolveFrameCamera();
+    ovCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    activeEntry.render(canvas.width, canvas.height, c, ovCtx, cssW, cssH, lang);
+
+    if (useVeil) {
+      await waitPaint(isCached ? 20 : 60);
+    }
+  } finally {
+    activeLoads = Math.max(0, activeLoads - 1);
+    if (seq === loadSeq) hideSceneLoader();
+  }
 }
 
 function openCatalog() {
@@ -551,6 +642,7 @@ window.__GDC__ = {
       samples: audio.getSampleStats?.() || null,
     };
   },
+  isLoading() { return activeLoads > 0; },
   renderNow() {
     if (activeEntry) {
       const c = resolveFrameCamera();

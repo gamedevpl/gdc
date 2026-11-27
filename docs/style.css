@@ -203,6 +203,45 @@ h2{margin:0 0 6px;font:bold clamp(21px,2.3vw,29px)/1.08 var(--sans);letter-spaci
   box-shadow:0 0 0 3px var(--ink);font-weight:bold;z-index:300;
 }
 
+.scene-loader{
+  position:fixed;inset:0;z-index:190;display:flex;align-items:center;justify-content:center;
+  padding:20px;pointer-events:none;opacity:0;
+  background:rgba(12,11,22,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  transition:opacity .22s ease;
+}
+.scene-loader.is-visible{opacity:1;pointer-events:auto;transition:opacity .12s ease}
+.scene-loader.is-quick{background:rgba(12,11,22,.62);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.scene-loader.is-quick .scene-loader-card{display:none}
+.scene-loader-card{
+  width:min(360px,92vw);padding:18px 20px 16px;
+  background:#1d1a2bf5;border-top:4px solid var(--loader-accent,var(--amber));
+  box-shadow:0 0 0 3px var(--ink),8px 8px 0 3px rgba(0,0,0,.48);
+  transform:translateY(8px) scale(.98);transition:transform .18s ease;
+}
+.scene-loader.is-visible .scene-loader-card{transform:translateY(0) scale(1)}
+.scene-loader-row{display:flex;align-items:center;gap:14px}
+.scene-loader-spin{
+  flex:none;width:28px;height:28px;border-radius:50%;
+  border:3px solid rgba(255,243,220,.16);
+  border-top-color:var(--loader-accent,var(--amber));
+  animation:gdc-spin .7s linear infinite;
+}
+.scene-loader-text{min-width:0;flex:1}
+.scene-loader-kicker{font:700 10.5px/1.2 var(--pix);letter-spacing:.08em;color:var(--mint);margin-bottom:4px}
+.scene-loader-title{font:700 18px/1.15 var(--sans);color:#fff3dc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scene-loader-bar{
+  margin-top:14px;height:4px;background:rgba(255,243,220,.10);overflow:hidden;position:relative;
+}
+.scene-loader-bar::after{
+  content:"";position:absolute;inset:0 auto 0 -40%;width:45%;
+  background:var(--loader-accent,var(--amber));
+  animation:gdc-bar 1.05s cubic-bezier(.4,0,.2,1) infinite;
+}
+.scene-loader-status{margin-top:8px;font:700 11px/1.2 var(--pix);color:var(--muted);letter-spacing:.05em}
+body.no-hud .scene-loader{display:none!important}
+@keyframes gdc-spin{to{transform:rotate(360deg)}}
+@keyframes gdc-bar{0%{left:-45%}100%{left:105%}}
+
 @media(max-width:780px){
   header{
     flex-wrap:nowrap;padding:max(7px,env(safe-area-inset-top)) 10px 7px;gap:6px;
