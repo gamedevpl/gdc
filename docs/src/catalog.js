@@ -10,6 +10,222 @@ export const CODEX_CATEGORIES = [
 
 export const CODEX_ENTRIES = [
   {
+    id: "camera-spring-arm",
+    accent: "#eab308",
+    category: "feel",
+    thumb: "thumbs/camera-spring-arm.jpg",
+    module: "./entries/camera-spring-arm/index.js",
+    title: {
+      en: "Camera Spring Arm & Wall Occlusion",
+      pl: "Ramię Kamery (Spring Arm) i Ściany",
+    },
+    kicker: {
+      en: "CAMERA ENGINEERING · PLAYABLE MINI-GAME #22",
+      pl: "KAMERA 3D · GRYWALNA MINI-GRA #22",
+    },
+    question: {
+      en: "Why 3rd-person cameras never clip behind dungeon walls or hide your hero behind marble pillars.",
+      pl: "Czemu kamera z trzeciej osoby nie wypada za ściany lochu i nie chowa bohatera za filarami.",
+    },
+    note: {
+      en: "Walk the explorer through the cutaway temple hall with WASD (or watch auto-patrol) and watch the floating 3D camera rig + live mini-screen! With Spring Arm ON [T], raycasts smoothly retract the camera inside the walls and fade blocking pillars — switch to Rigid [T] or hit Wall-Hug [V] to see it clip straight outside the stone wall.",
+      pl: "Chodź odkrywcą po świątyni (WASD lub auto-patrol) i patrz na kamerę 3D oraz podgląd ekranu gracza! Ze Spring Arm [T] raycast skraca ramię przed ścianą i rozjaśnia zasłaniające filary — przełącz na Sztywną [T] lub kliknij Test Przy Ścianie [V], żeby zobaczyć kamerę wbitą w mur.",
+    },
+    hint: {
+      en: "WASD / Click = Walk · V = Wall-Hug Test · T = Spring Arm / Rigid · R = Reset",
+      pl: "WASD / Klik = Chodź · V = Test Przy Ścianie · T = Spring Arm / Sztywna · R = Reset",
+    },
+  },
+  {
+    id: "animation-cancel",
+    accent: "#ec4899",
+    category: "feel",
+    thumb: "thumbs/animation-cancel.jpg",
+    module: "./entries/animation-cancel/index.js",
+    title: {
+      en: "Frame Data & Animation Cancel",
+      pl: "Frame Data i Anulowanie Animacji",
+    },
+    kicker: {
+      en: "COMBAT RESPONSIVENESS · PLAYABLE MINI-GAME #21",
+      pl: "RESPONSYWNOŚĆ WALKI · GRYWALNA MINI-GRA #21",
+    },
+    question: {
+      en: "Why great action games feel snappy: Startup → Active → Recovery frames, and slicing off 400ms of Recovery with a Dodge-Cancel.",
+      pl: "Czemu dobre gry akcji są tak responsywne: klatki Startup → Active → Recovery i ucinanie 400 ms Recovery unikiem.",
+    },
+    note: {
+      en: "Press Space (or Click) to swing a Heavy Katana Slash against the Counter Automaton and watch the live 60 FPS Frame Strip (Amber Startup → Red Active → Blue Recovery). With Dodge-Cancel ON [T], hit Shift right on impact to slice off the vulnerable Blue Recovery and dodge the counter-club — turn it OFF [T] to get locked and punished!",
+      pl: "Wciśnij Spację (lub Kliknij), żeby zadać ciężkie cięcie manekinowi i patrz na pasek klatek 60 FPS (Żółty Startup → Czerwony Active → Niebieski Recovery). Z Dodge-Cancel [T] wciśnij Shift po trafieniu, żeby uciąć podatne Recovery i uniknąć kontry — wyłącz [T], a dostaniesz karę!",
+    },
+    hint: {
+      en: "Space / Click = Heavy Slash · Shift = Dodge-Cancel · V = Slow-Mo 0.32× · T = Cancel ON/OFF",
+      pl: "Spacja / Klik = Cięcie · Shift = Anuluj (Dash) · V = Slow-Mo 0.32× · T = Cancel WŁ/WYŁ",
+    },
+  },
+  {
+    id: "utility-ai",
+    accent: "#f59e0b",
+    category: "ai",
+    thumb: "thumbs/utility-ai.jpg",
+    module: "./entries/utility-ai/index.js",
+    title: {
+      en: "Utility AI (Sims / NPC Needs)",
+      pl: "Utility AI (Potrzeby NPC jak w Simsach)",
+    },
+    kicker: {
+      en: "DECISION AI · PLAYABLE MINI-GAME #20",
+      pl: "AI DECYZJI · GRYWALNA MINI-GRA #20",
+    },
+    question: {
+      en: "How NPCs balance Hunger, Sleep & Wolf Danger smoothly using Utility Curves + Hysteresis instead of thrashing in if/else loops.",
+      pl: "Jak NPC płynnie godzi Głód, Sen i ucieczkę przed Wilkiem krzywymi Utility + Histerezą zamiast miotać się w pętli if/else.",
+    },
+    note: {
+      en: "Watch the woodland camper weigh live 0–1 utility bars for Food, Sleep & Flee, committing cleanly until each need is satisfied — Click anywhere or press [V] to unleash the Timber Wolf! Toggle [T] to Naive if/else (zero hysteresis) to watch the camper hilariously thrash back-and-forth mid-camp when Hunger and Fatigue tie.",
+      pl: "Obserwuj obozowicza ważącego na żywo paski Utility (Głód, Sen, Ucieczka) z histerezą — kliknij obóz lub wciśnij [V], żeby nasłać Wilka! Przełącz [T] na naiwne if/else bez histerezy i zobacz, jak NPC wpada w pętlę i biega tam i z powrotem przy remisie potrzeb.",
+    },
+    hint: {
+      en: "Click / V = Send Wolf Raid · T = Utility AI / Naive if-else · X = Spike Needs · R = Reset",
+      pl: "Klik / V = Atak Wilka · T = Utility AI / Naiwne if-else · X = Podkręć Potrzeby · R = Reset",
+    },
+  },
+  {
+    id: "quadtree-collisions",
+    accent: "#06b6d4",
+    category: "crowds",
+    thumb: "thumbs/quadtree-collisions.jpg",
+    module: "./entries/quadtree-collisions/index.js",
+    title: {
+      en: "Quadtree & Spatial Hashing",
+      pl: "Quadtree i Podział Przestrzeni",
+    },
+    kicker: {
+      en: "PHYSICS BROADPHASE · PLAYABLE MINI-GAME #19",
+      pl: "DETEKCJA KOLIZJI · GRYWALNA MINI-GRA #19",
+    },
+    question: {
+      en: "How games handle 100+ live collisions at 120 FPS: recursively splitting crowded quadrants instead of O(n²) every-pair checks.",
+      pl: "Jak gry liczą 100+ kolizji w 120 FPS: dzieląc tłoczne obszary w drzewie Quadtree zamiast O(n²) każdy z każdym.",
+    },
+    note: {
+      en: "Click anywhere (or press [V] for a Crowd Vortex) to pull 96 plasma drones into a dense cluster and watch the cyan Quadtree cells subdivide deeper on the fly while empty corners cost 0 checks! Toggle [T] to Brute-Force O(n²) to unleash the shocking crimson all-pairs web (4,560 checks every single frame!).",
+      pl: "Kliknij arenę (albo wciśnij [V] — Wir Tłumu), żeby zebrać 96 dronów w gęstą chmarę i zobacz, jak cyjanowe komórki Quadtree dzielą się głębiej na żywo, a puste kąty kosztują 0 testów! Przełącz [T] na Brute-Force O(n²), żeby zobaczyć czerwoną pajęczynę 4560 porównań na klatkę.",
+    },
+    hint: {
+      en: "Click / Hold = Crowd Vortex · T = Quadtree / O(n²) · V = Vortex Pulse · X = Toggle Grid",
+      pl: "Klik / Przytrzymaj = Wir Tłumu · T = Quadtree / O(n²) · V = Impuls Wiru · X = Siatka",
+    },
+  },
+  {
+    id: "frustum-culling",
+    accent: "#a855f7",
+    category: "systems",
+    thumb: "thumbs/frustum-culling.jpg",
+    module: "./entries/frustum-culling/index.js",
+    title: {
+      en: "Frustum & Occlusion Culling",
+      pl: "Frustum i Occlusion Culling",
+    },
+    kicker: {
+      en: "RENDERING OPT · PLAYABLE MINI-GAME #18",
+      pl: "OPTYMALIZACJA 3D · GRYWALNA MINI-GRA #18",
+    },
+    question: {
+      en: "The #1 trick behind 60+ FPS open worlds: your GPU deletes everything outside the 62° camera cone and behind solid walls.",
+      pl: "Główny sekret płynnych światów 3D: karta graficzna pomija wszystko poza stożkiem kamery 62° i za pełnymi murami.",
+    },
+    note: {
+      en: "Pan the 3D Harbor Camera with A/D or Mouse (or click [V] Wall Occlusion Test) across 35 buildings & trees! Everything outside the cyan 62° frustum OR tucked behind the Stone Castle Wall gets skipped (~75% less GPU work). Switch Culling OFF [T] to watch the GPU waste draw calls on the entire unseen town.",
+      pl: "Obracaj kamerę nad portem (A/D lub Mysz, albo kliknij [V] Test Ściany) wśród 35 budynków i drzew! Wszystko poza stożkiem 62° ORAZ schowane za murem zamku znika z kolejki GPU (~75% mniej pracy). Wyłącz Culling [T], żeby zobaczyć marnowanie mocy na niewidoczne miasto.",
+    },
+    hint: {
+      en: "A/D or Mouse = Pan Camera · V = Wall Occlusion Test · T = Culling ON/OFF · X = Culled Ghosts",
+      pl: "A/D lub Mysz = Obróć Kamerę · V = Test Ściany · T = Culling WŁ/WYŁ · X = Duchy Wyciętych",
+    },
+  },
+  {
+    id: "hitboxes-iframes",
+    accent: "#f43f5e",
+    category: "feel",
+    thumb: "thumbs/hitboxes-iframes.jpg",
+    module: "./entries/hitboxes-iframes/index.js",
+    title: {
+      en: "Hitboxes, Hurtboxes & I-Frames",
+      pl: "Hitboxy, Hurtboxy i I-Frames",
+    },
+    kicker: {
+      en: "SOULS-LIKE FEEL · PLAYABLE MINI-GAME #17",
+      pl: "FEEL WALKI · GRYWALNA MINI-GRA #17",
+    },
+    question: {
+      en: "Why rolling straight through a giant boss halberd feels fair: fitted hitboxes & 280ms of golden Invincibility Frames vs bloated jank boxes.",
+      pl: "Czemu przewrót prosto przez gigantyczną halabardę bossa działa uczciwie: dopasowany hitbox i 280 ms złotych I-Frames kontra rozdmuchany jank.",
+    },
+    note: {
+      en: "Move with WASD and press Space (or Click) to Dodge Roll straight through the Boss's sweeping crimson halberd (press [V] for 0.28× Slow-Mo Frame Study!). In Fair Mode [T], rolling turns your green hurtbox radiant GOLD (280ms I-Frames = 0 DMG!). Switch to Jank Mode [T] to watch an oversized hitbox phantom-hit you through empty air.",
+      pl: "Chodź WASD i rób przewrót Spacją (lub LPM) prosto przez zamach halabardy bossa (wciśnij [V] dla 0.28× Slow-Mo!). W trybie Fair [T] przewrót zamienia zielony hurtbox w ZŁOTY (280 ms I-Frames = 0 obrażeń!). Przełącz na Jank [T], żeby zobaczyć widmowe trafienia z powietrza.",
+    },
+    hint: {
+      en: "WASD = Move · Space / Click = Dodge Roll · V = Slow-Mo 0.28× · T = Fair / Jank · X = X-Ray Boxes",
+      pl: "WASD = Ruch · Spacja / Klik = Unik · V = Slow-Mo 0.28× · T = Fair / Jank · X = Pudła X-Ray",
+    },
+  },
+  {
+    id: "wfc-island",
+    accent: "#10b981",
+    category: "systems",
+    thumb: "thumbs/wfc-island.jpg",
+    module: "./entries/wfc-island/index.js",
+    title: {
+      en: "Wave Function Collapse (WFC)",
+      pl: "Wave Function Collapse (WFC)",
+    },
+    kicker: {
+      en: "PROCEDURAL GEN · PLAYABLE MINI-GAME #16",
+      pl: "GENERACJA ŚWIATA · GRYWALNA MINI-GRA #16",
+    },
+    question: {
+      en: "How games like Townscaper & Bad North build seamless islands tile-by-tile using lowest-entropy constraint propagation.",
+      pl: "Jak gry takie jak Townscaper czy Bad North układają spójne wyspy kafelek po kafelku propagacją ograniczeń i najniższą entropią.",
+    },
+    note: {
+      en: "Watch the 8×8 archipelago collapse step-by-step from lowest entropy outward with zero broken coastlines — click ANY tile to pin a Town Village or Ocean block and watch neighbors re-solve live! Toggle [T] to Pure Random placement to see broken cliff-into-ocean edges light up in crimson.",
+      pl: "Zobacz, jak archipelag 8×8 zapada się krok po kroku od najniższej entropii bez żadnego złamanego brzegu — kliknij DOWOLNY kafelek, żeby przypiąć Wioskę lub Ocean i przepropagować sąsiadów! Przełącz [T] na Czysty Los, a zobaczysz czerwone błędy sąsiedztwa.",
+    },
+    hint: {
+      en: "Click Tile = Pin Town/Ocean · Space = New Island · V = Step 1 · T = WFC / Random · X = Entropy",
+      pl: "Klik Kafelka = Przypnij Wioskę/Ocean · Spacja = Nowa Wyspa · V = Krok · T = WFC / Los · X = Entropia",
+    },
+  },
+  {
+    id: "lag-compensation",
+    accent: "#38bdf8",
+    category: "systems",
+    thumb: "thumbs/lag-compensation.jpg",
+    module: "./entries/lag-compensation/index.js",
+    title: {
+      en: "Lag Compensation & Server Rewind",
+      pl: "Kompensacja Laga (Server Rewind)",
+    },
+    kicker: {
+      en: "MULTIPLAYER NETCODE · PLAYABLE MINI-GAME #15",
+      pl: "NETCODE SIECIOWY · GRYWALNA MINI-GRA #15",
+    },
+    question: {
+      en: "Why sniper shots land at 180ms ping AND why you sometimes die 'behind a wall': the server rewinds hitboxes back in time.",
+      pl: "Czemu snajper trafia przy pingu 180 ms ORAZ czemu czasem giniesz 'za ścianą': serwer cofa hitboxy w czasie.",
+    },
+    note: {
+      en: "Aim with Mouse / A-D and fire with Click / Space at the sprinting Solid Runner (what YOUR screen sees) while the translucent cyan ghost shows where the Server knows he ALREADY is +180ms ahead! Hit Behind-Wall Test [V] to see why Lag Comp ON [T] rewinds time for a fair hit — and why OFF [T] misses dead-center shots.",
+      pl: "Celuj Myszą / A-D i strzelaj (LPM / Spacja) w pełnego biegacza (to widzi TWÓJ ekran), podczas gdy cyjanowy duch pokazuje jego PRAWDZIWĄ pozycję na serwerze +180 ms dalej! Kliknij Test 'Za Ścianą' [V], żeby zobaczyć cofanie czasu [T] kontra pudła bez Rewindu.",
+    },
+    hint: {
+      en: "Mouse / A-D = Aim · Click / Space = Fire · V = Behind-Wall Test · T = Rewind ON/OFF · X = Ping ms",
+      pl: "Mysz / A-D = Celuj · Klik / Spacja = Strzał · V = Test Za Ścianą · T = Rewind WŁ/WYŁ · X = Ping ms",
+    },
+  },
+  {
     id: "pity-timer",
     accent: "#f59e0b",
     category: "systems",
