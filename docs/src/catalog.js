@@ -5,9 +5,118 @@ export const CODEX_CATEGORIES = [
   { id: "feel", en: "Game Feel & Camera", pl: "Game Feel i Kamera" },
   { id: "ai", en: "Enemy & Race AI", pl: "AI Przeciwników" },
   { id: "crowds", en: "Pathfinding & Crowds", pl: "Nawigacja i Roje" },
+  { id: "systems", en: "World & Systems", pl: "Świat i Systemy" },
 ];
 
 export const CODEX_ENTRIES = [
+  {
+    id: "pity-timer",
+    accent: "#f59e0b",
+    category: "systems",
+    thumb: "thumbs/pity-timer.jpg",
+    module: "./entries/pity-timer/index.js",
+    title: {
+      en: "Pity Timer & Pseudo-Random Drops",
+      pl: "Pity Timer i Oszukany RNG",
+    },
+    kicker: {
+      en: "LOOT SYSTEMS · PLAYABLE MINI-GAME #14",
+      pl: "SYSTEMY LOOTU · GRYWALNA MINI-GRA #14",
+    },
+    question: {
+      en: "Why '10% drop rate' in RPGs & Dota secretly climbs on every miss so you never suffer a 30-pull dry streak.",
+      pl: "Czemu '10% dropu' w RPG i Docie po cichu rośnie po każdym pudle, żebyś nigdy nie miał serii 30 porażek.",
+    },
+    note: {
+      en: "Click the Gilded Chest (or Space) to roll loot, or press [V] to simulate 100 pulls! Compare Hidden Pity + PRD (secretly ramps from 3% up to 100% guaranteed by pull #12) vs True 10% RNG where brutal 25+ miss dry streaks hit constantly.",
+      pl: "Kliknij Skrzynię (lub Spację), żeby losować loot, albo wciśnij [V] dla symulacji 100 otwarć! Porównaj Ukryty Pity + PRD (szansa rośnie po cichu od 3% do 100% przy 12. próbie) z Prawdziwym 10% RNG pełnym bolesnych serii 25+ porażek.",
+    },
+    hint: {
+      en: "Space / Click = Open Chest · V = Simulate 100× · T = Pity+PRD / True 10% RNG · R = Reset",
+      pl: "Spacja / Klik = Otwórz Skrzynię · V = Symuluj 100× · T = Pity+PRD / Czyste 10% · R = Reset",
+    },
+  },
+  {
+    id: "bsp-dungeon",
+    accent: "#a855f7",
+    category: "systems",
+    thumb: "thumbs/bsp-dungeon.jpg",
+    module: "./entries/bsp-dungeon/index.js",
+    title: {
+      en: "Procedural Dungeon (BSP + MST)",
+      pl: "Proceduralny Loch (BSP + MST)",
+    },
+    kicker: {
+      en: "WORLD GEN · PLAYABLE MINI-GAME #13",
+      pl: "GENERACJA ŚWIATA · GRYWALNA MINI-GRA #13",
+    },
+    question: {
+      en: "How roguelikes generate thousands of 3D dungeons and NEVER trap the player away from the exit.",
+      pl: "Jak roguelike generuje tysiące lochów 3D i NIGDY nie odcina gracza od wyjścia.",
+    },
+    note: {
+      en: "Press Space or Click to roll new seeds, and walk with WASD (or watch the Delver auto-walk the verified path). Toggle [T] between BSP + Spanning Tree (0 overlapping rooms, 100% Flood-Fill solvable) vs Pure Random (ugly overlaps & unreachable red exit islands!).",
+      pl: "Wciśnij Spację lub Kliknij po nowy seed i chodź WASD (albo obserwuj auto-marsz rycerza). Przełączaj [T] między BSP + Drzewem (0 kolizji, 100% przejścia) a Czystym Losowaniem (nachodzące pokoje i odcięte czerwone wyspy!).",
+    },
+    hint: {
+      en: "Space / Click = New Seed · WASD = Explore · T = BSP+MST / Random · X = BSP Splits & Graph",
+      pl: "Spacja / Klik = Nowy Seed · WASD = Zwiedzaj · T = BSP+MST / Losowy · X = Drzewo BSP",
+    },
+  },
+  {
+    id: "ai-director",
+    accent: "#ef4444",
+    category: "ai",
+    thumb: "thumbs/ai-director.jpg",
+    module: "./entries/ai-director/index.js",
+    title: {
+      en: "AI Director (L4D Pacing)",
+      pl: "AI Director (Tempo Fali L4D)",
+    },
+    kicker: {
+      en: "PACING AI · PLAYABLE MINI-GAME #12",
+      pl: "AI TEMPA · GRYWALNA MINI-GRA #12",
+    },
+    question: {
+      en: "Why you always barely survive zombie waves: Build-Up → Peak → Relax intensity curves & mercy medkits.",
+      pl: "Czemu w Left 4 Dead zawsze cudem przeżywasz falę: wykres napięcia Build-Up → Peak → Relax i apteczki.",
+    },
+    note: {
+      en: "Kite across the stormy helipad with WASD and fire your shotgun with Space / Click (or watch auto-survival!). Watch the live L4D Intensity Curve: when stress peaks, the AI Director cuts spawns to 0 (Relax) and drops Medkits — turn it OFF [T] for relentless unfair spawns.",
+      pl: "Biegaj po dachu (WASD) i strzelaj Spacją / LPM (albo oglądaj auto-obronę!). Patrz na wykres stresu: gdy napięcie sięga szczytu, AI Director odcina spawn do zera (Relax) i zrzuca apteczki — wyłącz go [T], żeby zobaczyć nieuczciwy zalew.",
+    },
+    hint: {
+      en: "WASD = Kite · Space / Click = Shotgun · T = AI Director / Constant Spawn · V = Trigger Peak Wave",
+      pl: "WASD = Ruch · Spacja / LPM = Strzelba · T = AI Director / Stały Spawn · V = Wywołaj Falę",
+    },
+  },
+  {
+    id: "bullet-magnetism",
+    accent: "#f43f5e",
+    category: "feel",
+    thumb: "thumbs/bullet-magnetism.jpg",
+    module: "./entries/bullet-magnetism/index.js",
+    title: {
+      en: "Bullet Magnetism & Aim Assist",
+      pl: "Magnetyzm Pocisków (Aim Assist)",
+    },
+    kicker: {
+      en: "SHOOTING FEEL · PLAYABLE MINI-GAME #11",
+      pl: "FEEL STRZELANIA · GRYWALNA MINI-GRA #11",
+    },
+    question: {
+      en: "Why shots in Halo & Destiny hit when you miss: ±7.5° mid-air bullet curving & reticle friction.",
+      pl: "Czemu w Halo i Destiny trafiasz w głowę, choć celownik był obok: zakrzywianie pocisków ±7.5° i tarcie.",
+    },
+    note: {
+      en: "Aim with your mouse (or A/D) and fire with Click / Space at the strafing target bots! Press Near-Miss Test [V] to fire 5 deliberate +4.8° off-target shots: with Magnetism ON [T] all 5 plasma arcs visibly bend into headshots — in Raw 0° mode all 5 whiz past.",
+      pl: "Celuj myszką (lub A/D) i strzelaj LPM / Spacją do ruchomych botów! Wciśnij Test Pudła [V] (+4.8° obok celu): z Magnetyzmem [T] wszystkie 5 strzałów zakrzywia się w głowę — w trybie Raw 0° wszystkie przelatują obok.",
+    },
+    hint: {
+      en: "Mouse / A-D = Aim · Click / Space = Fire · V = Near-Miss (+4.8°) Test · T = Magnetism / Raw 0° · X = Cones",
+      pl: "Mysz / A-D = Celuj · Klik / Spacja = Strzał · V = Test +4.8° · T = Magnetyzm / Raw 0° · X = Stożki",
+    },
+  },
   {
     id: "flow-field",
     accent: "#22c55e",
