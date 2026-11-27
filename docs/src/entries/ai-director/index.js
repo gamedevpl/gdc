@@ -1,26 +1,56 @@
 // Entry #12: AI Director (Left 4 Dead Pacing Curve) — Playable 3D Stormy Rooftop Survival!
-// Demonstrates Valve's iconic Build-Up -> Peak -> Peak Fade -> Relax emotional rollercoaster:
-// the AI Director tracks Player Intensity (0..100%) in real time, throttling horde spawns to 0 and dropping
-// Medkits during Relax breathers — vs relentless Constant Random Spawns that overwhelm unfairly!
+// Studio Overhaul: Dramatic Build-Up -> Peak -> Peak Fade -> Relax emotional pacing with real Control Tower,
+// locking Stairwell Spawn Gates, Emerald Medkit Rescue Drops, and crisp 3D World-Space Callout Pills!
 import { clamp, lerp } from "../../gl-utils.js";
 import { createRooftopRenderer } from "./rooftop-renderer.js";
 
-const SPAWN_PTS = [[-6.5, -5.0], [6.5, -5.0], [-6.5, 5.0], [6.5, 5.0]];
+const SPAWN_PTS = [[-6.2, -4.8], [6.2, -4.8], [-6.2, 4.7], [6.2, 4.7]];
+
+function projectToScreen(vp, x, y, z, w, h) {
+  const cx = vp[0] * x + vp[4] * y + vp[8] * z + vp[12];
+  const cy = vp[1] * x + vp[5] * y + vp[9] * z + vp[13];
+  const cw = vp[3] * x + vp[7] * y + vp[11] * z + vp[15];
+  if (cw <= 0.01) return null;
+  return { x: (cx / cw * 0.5 + 0.5) * w, y: (0.5 - cy / cw * 0.5) * h };
+}
+
+function drawWorldPill(ctx, x, y, text, color, cssW, cssH, fontPx = 10.5) {
+  ctx.save();
+  ctx.font = `800 ${fontPx}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  const tw = ctx.measureText(text).width;
+  const pw = tw + 14;
+  const ph = fontPx + 10;
+  const px = clamp(x - pw * 0.5, 8, cssW - pw - 8);
+  const py = clamp(y - ph * 0.5, 56, cssH - ph - 8);
+  ctx.fillStyle = "rgba(9, 13, 24, 0.90)";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(px, py, pw, ph, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, px + pw * 0.5, py + ph * 0.5 + 0.5);
+  ctx.restore();
+}
 
 export function createEntry(gl, { requestHudRefresh, audio } = {}) {
   const renderer = createRooftopRenderer(gl);
 
-  const defaultCam = { yaw: 0.0, pitch: 0.84, dist: 19.6, targetX: 0.0, targetY: 0.3, targetZ: 0.25, fovDeg: 40 };
+  const defaultCam = { yaw: 0.0, pitch: 0.80, dist: 19.2, targetX: 0.0, targetY: 0.45, targetZ: 0.0, fovDeg: 40 };
 
   let time = 0;
-  let directorOn = true; // true = L4D AI Director (Build -> Peak -> Fade -> Relax), false = Constant Relentless Spawn!
-  let phase = "BUILD";   // BUILD | PEAK | FADE | RELAX
+  let directorOn = true;
+  let phase = "BUILD"; // BUILD | PEAK | FADE | RELAX
   let phaseTimer = 0;
-  let intensity = 22;    // 0..100 emotional stress meter
-  let history = new Array(56).fill(22);
+  let intensity = 26;
+  let history = new Array(56).fill(26);
   let histTick = 0;
+  let userInteracted = false;
 
-  let spawnCd = 0.6;
+  let spawnCd = 0.5;
   let kills = 0;
   let relaxCount = 0;
   let medkitsDropped = 0;
@@ -45,49 +75,58 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 1.2 + Math.random() * 2.5;
-      sparks.push({ x, y, z, vx: Math.cos(a) * sp, vy: 1.4 + Math.random() * 2.2, vz: Math.sin(a) * sp, r, g, b, size: 0.14, life: 0.42, maxLife: 0.42 });
+      sparks.push({ x, y, z, vx: Math.cos(a) * sp, vy: 1.4 + Math.random() * 2.2, vz: Math.sin(a) * sp, r, g, b, size: 0.15, life: 0.44, maxLife: 0.44 });
     }
   }
 
   function spawnZombie() {
     const pt = SPAWN_PTS[Math.floor(Math.random() * SPAWN_PTS.length)];
     zombies.push({
-      x: pt[0] + (Math.random() - 0.5) * 0.8,
-      z: pt[1] + (Math.random() - 0.5) * 0.8,
+      x: pt[0] + (Math.random() - 0.5) * 0.7,
+      z: pt[1] + (Math.random() - 0.5) * 0.7,
       yaw: 0,
       walkPhase: Math.random() * 6,
       hp: 2,
       flash: 0,
-      atkCd: 0.4,
-      spd: 2.25 + Math.random() * 0.65,
+      atkCd: 0.35,
+      spd: 2.35 + Math.random() * 0.65,
     });
+  }
+
+  function dropMedkit() {
+    medkits.push({
+      x: (Math.random() - 0.5) * 4.2,
+      y: 5.2, // drops visibly from the sky with emerald rescue beam!
+      z: (Math.random() - 0.5) * 3.0,
+    });
+    medkitsDropped++;
+    if (userInteracted) audio?.mercyShield?.();
   }
 
   function reset() {
     time = 0;
     phase = "BUILD";
     phaseTimer = 0;
-    intensity = 22;
-    history = new Array(56).fill(22);
+    intensity = 26;
+    history = new Array(56).fill(26);
     histTick = 0;
-    spawnCd = 0.5;
+    spawnCd = 0.45;
     kills = 0; relaxCount = 0; medkitsDropped = 0; overwhelms = 0;
     survivor.x = 0; survivor.z = 0.4; survivor.hp = 100; survivor.hurtFlash = 0;
     zombies = []; medkits = []; tracers = []; sparks = [];
-    for (let i = 0; i < 3; i++) spawnZombie();
+    for (let i = 0; i < 4; i++) spawnZombie();
     bannerTimer = 0;
   }
 
   reset();
 
-  function fireShotgun(targetX = null, targetZ = null) {
+  function fireShotgun(targetX = null, targetZ = null, { silent = false } = {}) {
     if (shootCd > 0) return;
-    shootCd = 0.28;
+    shootCd = 0.30;
     let aimYaw = survivor.yaw;
     if (targetX != null && targetZ != null) {
       aimYaw = Math.atan2(targetX - survivor.x, targetZ - survivor.z);
     } else if (zombies.length > 0) {
-      // Auto-target nearest zombie if firing via Space or auto-defense!
       let best = zombies[0], bestD = Infinity;
       for (const z of zombies) {
         const d = Math.hypot(z.x - survivor.x, z.z - survivor.z);
@@ -96,13 +135,12 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       aimYaw = Math.atan2(best.x - survivor.x, best.z - survivor.z);
     }
     survivor.yaw = aimYaw;
-    audio?.hammerImpact?.(true, false);
+    if (!silent) audio?.hammerImpact?.(true, false);
 
-    // 3-pellet shotgun spread!
     for (const off of [-0.14, 0, 0.14]) {
       const a = aimYaw + off;
       const dx = Math.sin(a), dz = Math.cos(a);
-      let hitZ = null, hitDist = 7.4;
+      let hitZ = null, hitDist = 7.2;
       for (const z of zombies) {
         const rx = z.x - survivor.x, rz = z.z - survivor.z;
         const proj = rx * dx + rz * dz;
@@ -111,29 +149,30 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
           if (perp < 0.62) { hitDist = proj; hitZ = z; }
         }
       }
-      tracers.push({ x0: survivor.x + dx * 0.6, z0: survivor.z + dz * 0.6, x1: survivor.x + dx * hitDist, z1: survivor.z + dz * hitDist, life: 0.12, maxLife: 0.12 });
+      tracers.push({ x0: survivor.x + dx * 0.65, z0: survivor.z + dz * 0.65, x1: survivor.x + dx * hitDist, z1: survivor.z + dz * hitDist, life: 0.14, maxLife: 0.14 });
       if (hitZ) {
         hitZ.hp -= 1;
         hitZ.flash = 1.0;
-        hitZ.x += dx * 0.45;
-        hitZ.z += dz * 0.45;
-        spawnSparks(hitZ.x, 1.0, hitZ.z, 1.0, 0.35, 0.25, 7);
+        hitZ.x += dx * 0.42;
+        hitZ.z += dz * 0.42;
+        spawnSparks(hitZ.x, 1.0, hitZ.z, 1.0, 0.38, 0.24, 7);
       }
     }
     for (let i = zombies.length - 1; i >= 0; i--) {
       if (zombies[i].hp <= 0) {
-        spawnSparks(zombies[i].x, 0.9, zombies[i].z, 1.0, 0.68, 0.22, 12);
+        spawnSparks(zombies[i].x, 0.9, zombies[i].z, 1.0, 0.72, 0.24, 12);
         zombies.splice(i, 1);
         kills++;
-        intensity = clamp(intensity + 4.5, 0, 100);
+        intensity = clamp(intensity + 5.0, 0, 100);
       }
     }
   }
 
   function triggerPeakWave() {
+    userInteracted = true;
     phase = "PEAK";
     phaseTimer = 0;
-    intensity = Math.max(intensity, 86);
+    intensity = Math.max(intensity, 88);
     for (let i = 0; i < 6; i++) spawnZombie();
     audio?.alertBuzzer?.();
     setBanner(
@@ -155,17 +194,21 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       s.vy -= 7.5 * dt; s.x += s.vx * dt; s.y = Math.max(0.05, s.y + s.vy * dt); s.z += s.vz * dt;
     }
 
-    // Survivor Movement (WASD / Arrows manual kite, OR smart auto-kiting + auto-shotgun if idle!)
+    // Drop-in descent animation for Medkits
+    for (const mk of medkits) {
+      if (mk.y > 0.14) mk.y = Math.max(0.14, mk.y - dt * 8.2);
+    }
+
     const kw = keys?.has("KeyW") || keys?.has("ArrowUp");
     const ks = keys?.has("KeyS") || keys?.has("ArrowDown");
     const ka = keys?.has("KeyA") || keys?.has("ArrowLeft");
     const kd = keys?.has("KeyD") || keys?.has("ArrowRight");
     let mx = (kd ? 1 : 0) - (ka ? 1 : 0);
     let mz = (ks ? 1 : 0) - (kw ? 1 : 0);
+    if (mx !== 0 || mz !== 0) userInteracted = true;
 
     if (mx === 0 && mz === 0) {
-      // Gentle auto-kite away from closest zombie (or toward Medkit!) so simulation plays cleanly hands-free too!
-      if (medkits.length > 0 && survivor.hp < 85) {
+      if (medkits.length > 0 && medkits[0].y < 0.5 && survivor.hp < 92) {
         const mk = medkits[0];
         mx = mk.x - survivor.x; mz = mk.z - survivor.z;
       } else if (zombies.length > 0) {
@@ -175,22 +218,20 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
           const d = Math.hypot(dx, dz) || 0.1;
           if (d < 4.5) { repX += (dx / d) / d; repZ += (dz / d) / d; }
         }
-        // Pull softly toward center helipad so survivor circles cleanly
-        mx = repX - survivor.x * 0.22;
-        mz = repZ - survivor.z * 0.22;
+        mx = repX - survivor.x * 0.24;
+        mz = repZ - survivor.z * 0.24;
       }
-      // Auto-defend with shotgun when zombies close in
       if (zombies.length > 0 && shootCd <= 0) {
         const nearest = Math.min(...zombies.map((z) => Math.hypot(z.x - survivor.x, z.z - survivor.z)));
-        if (nearest < 5.6) fireShotgun();
+        if (nearest < 5.3) fireShotgun(null, null, { silent: !userInteracted });
       }
     }
 
     const ml = Math.hypot(mx, mz);
     if (ml > 0.15) {
-      const sp = 3.8;
-      survivor.x = clamp(survivor.x + (mx / ml) * sp * dt, -6.5, 6.5);
-      survivor.z = clamp(survivor.z + (mz / ml) * sp * dt, -5.2, 5.2);
+      const sp = 3.7;
+      survivor.x = clamp(survivor.x + (mx / ml) * sp * dt, -6.2, 6.2);
+      survivor.z = clamp(survivor.z + (mz / ml) * sp * dt, -4.8, 4.9);
       survivor.walkPhase += dt * 10.5;
       survivor.walkAmp = lerp(survivor.walkAmp, 1, clamp(dt * 10, 0, 1));
       if (shootCd <= 0.12) survivor.yaw = Math.atan2(mx, mz);
@@ -198,18 +239,16 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       survivor.walkAmp = lerp(survivor.walkAmp, 0, clamp(dt * 10, 0, 1));
     }
 
-    // Collect Medkit Crates
     for (let i = medkits.length - 1; i >= 0; i--) {
-      if (Math.hypot(survivor.x - medkits[i].x, survivor.z - medkits[i].z) < 1.05) {
+      if (medkits[i].y < 0.6 && Math.hypot(survivor.x - medkits[i].x, survivor.z - medkits[i].z) < 1.05) {
         survivor.hp = Math.min(100, survivor.hp + 40);
-        audio?.coinPickup?.();
+        if (userInteracted) audio?.coinPickup?.();
         spawnSparks(medkits[i].x, 0.7, medkits[i].z, 0.16, 1.0, 0.64, 16);
         medkits.splice(i, 1);
         setBanner("DIRECTOR MEDKIT PICKED UP (+40 HP!)", "#34d399", 1.5);
       }
     }
 
-    // Update Infected Runners + compute real-time Player Stress / Intensity (0..100%)
     let nearbyCount = 0;
     for (const z of zombies) {
       z.flash = Math.max(0, z.flash - dt * 4.0);
@@ -217,17 +256,17 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       const dx = survivor.x - z.x, dz = survivor.z - z.z;
       const d = Math.hypot(dx, dz) || 0.01;
       z.yaw = Math.atan2(dx, dz);
-      if (d < 4.5) nearbyCount++;
-      if (d > 0.85) {
-        z.x = clamp(z.x + (dx / d) * z.spd * dt, -6.9, 6.9);
-        z.z = clamp(z.z + (dz / d) * z.spd * dt, -5.6, 5.6);
+      if (d < 4.8) nearbyCount++;
+      if (d > 0.86) {
+        z.x = clamp(z.x + (dx / d) * z.spd * dt, -6.6, 6.6);
+        z.z = clamp(z.z + (dz / d) * z.spd * dt, -5.2, 5.2);
         z.walkPhase += dt * 9.5;
       } else if (z.atkCd <= 0) {
-        z.atkCd = 0.75;
+        z.atkCd = 0.72;
         survivor.hp = Math.max(0, survivor.hp - 12);
         survivor.hurtFlash = 1.0;
         intensity = clamp(intensity + 18, 0, 100);
-        audio?.playerHurt?.();
+        if (userInteracted) audio?.playerHurt?.();
         if (survivor.hp <= 0) {
           overwhelms++;
           survivor.hp = 100;
@@ -239,12 +278,11 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       }
     }
 
-    // Continuous Player Intensity Model (rises with nearby horde, decays when safe!)
-    const targetStress = clamp(nearbyCount * 14 + (100 - survivor.hp) * 0.55, 0, 100);
+    const targetStress = clamp(nearbyCount * 15 + (100 - survivor.hp) * 0.55, 0, 100);
     if (targetStress > intensity) {
-      intensity = clamp(intensity + (targetStress - intensity) * dt * 1.35 + nearbyCount * dt * 3.2, 0, 100);
+      intensity = clamp(intensity + (targetStress - intensity) * dt * 1.45 + nearbyCount * dt * 3.6, 0, 100);
     } else {
-      intensity = clamp(intensity - dt * (zombies.length === 0 ? 18 : 7.5), 0, 100);
+      intensity = clamp(intensity - dt * (zombies.length === 0 ? 19 : 8.2), 0, 100);
     }
 
     // === L4D AI DIRECTOR 4-PHASE STATE MACHINE vs CONSTANT RANDOM SPAWN ===
@@ -255,9 +293,9 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       if (phase === "BUILD") {
         if (spawnCd <= 0 && zombies.length < 10) {
           spawnZombie();
-          spawnCd = 0.85;
+          spawnCd = 0.76;
         }
-        if (intensity >= 78 || phaseTimer > 5.5) {
+        if (intensity >= 76 || phaseTimer > 4.2) {
           phase = "PEAK";
           phaseTimer = 0;
           setBanner("DIRECTOR PHASE: PEAK HORDE!", "#ef4444", 1.5);
@@ -265,38 +303,32 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       } else if (phase === "PEAK") {
         if (spawnCd <= 0 && zombies.length < 14) {
           spawnZombie();
-          spawnCd = 0.52;
+          spawnCd = 0.48;
         }
-        if (phaseTimer > 3.2 || survivor.hp <= 36) {
+        if (phaseTimer > 3.1 || survivor.hp <= 42) {
           phase = "FADE";
           phaseTimer = 0;
           setBanner("DIRECTOR: CUTTING SPAWNS (PEAK FADE)...", "#38bdf8", 1.5);
         }
       } else if (phase === "FADE") {
-        // ZERO spawns during Peak Fade until intensity drops below 42% (or 3.2s elapsed)!
-        if (intensity < 44 || phaseTimer > 3.2) {
+        if (intensity < 44 || phaseTimer > 2.4) {
           phase = "RELAX";
           phaseTimer = 0;
           relaxCount++;
-          // Drop a dynamic Medkit if Survivor took damage!
-          if (medkits.length === 0 && survivor.hp < 88) {
-            medkits.push({ x: (Math.random() - 0.5) * 4.5, z: (Math.random() - 0.5) * 3.5 });
-            medkitsDropped++;
-            audio?.mercyShield?.();
+          if (medkits.length === 0 && (survivor.hp < 94 || relaxCount === 1)) {
+            dropMedkit();
             setBanner("DIRECTOR: RELAX BREATHER + MEDKIT DROPPED!", "#34d399", 2.0);
           } else {
             setBanner("DIRECTOR: RELAX BREATHER (0 SPAWNS)", "#34d399", 1.7);
           }
         }
       } else {
-        // RELAX: zero spawns for 3.6s so player catches their breath!
         if (phaseTimer > 3.6) {
           phase = "BUILD";
           phaseTimer = 0;
         }
       }
     } else {
-      // CONSTANT RANDOM SPAWN (Director OFF — relentless flat rate, ZERO breathers, ZERO medkits!)
       phase = "PEAK";
       if (spawnCd <= 0 && zombies.length < 24) {
         spawnZombie();
@@ -304,7 +336,6 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       }
     }
 
-    // Record scrolling intensity waveform every 0.16s
     histTick += dt;
     if (histTick >= 0.16) {
       histTick = 0;
@@ -316,6 +347,8 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
   function drawOverlay(ctx, cssW, cssH, viewProj, lang) {
     ctx.clearRect(0, 0, cssW, cssH);
     const isPl = lang === "pl";
+    const isCompact = cssW < 640;
+
     const phaseLabel = !directorOn
       ? (isPl ? "STAŁY SPAWN (CHAOS)" : "CONSTANT SPAWN")
       : phase === "PEAK" ? (isPl ? "SZCZYT FALI (PEAK)" : "PEAK HORDE")
@@ -324,16 +357,66 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       : (isPl ? "NAPIĘCIE (BUILD-UP)" : "BUILD-UP");
     const phaseCol = !directorOn || phase === "PEAK" ? "#f87171" : phase === "RELAX" ? "#34d399" : phase === "FADE" ? "#38bdf8" : "#fbbf24";
 
+    // 1. World-Space 3D Storytelling Callouts!
+    if (viewProj) {
+      // Control Tower Director Decision Pill (sits cleanly over the panoramic tower glass, below any top banner!)
+      const tp = projectToScreen(viewProj, 0.0, 2.55, -5.85, cssW, cssH);
+      if (tp) {
+        const towerTxt = !directorOn
+          ? (isPl ? "BRAK DIRECTORA · CIĄGŁY CHAOS!" : "NO DIRECTOR · NON-STOP SPAWNS!")
+          : phase === "PEAK"
+            ? (isPl ? `AI DIRECTOR · STRES ${Math.round(intensity)}% → SZCZYT!` : `AI DIRECTOR · STRESS ${Math.round(intensity)}% → PEAK!`)
+          : phase === "FADE"
+            ? (isPl ? `AI DIRECTOR · STRES ${Math.round(intensity)}% → STOP SPAWN!` : `AI DIRECTOR · CUTTING SPAWNS (0/s)`)
+          : phase === "RELAX"
+            ? (isPl ? "AI DIRECTOR · RELAX + APTECZKA ✓" : "AI DIRECTOR · RELAX BREATHER ✓")
+            : (isPl ? `AI DIRECTOR · NAPIĘCIE ${Math.round(intensity)}%` : `AI DIRECTOR · BUILD-UP (${Math.round(intensity)}%)`);
+        drawWorldPill(ctx, tp.x, tp.y, towerTxt, phaseCol, cssW, cssH, isCompact ? 9.5 : 10.5);
+      }
+
+      // Survivor HP Pill
+      const sp = projectToScreen(viewProj, survivor.x, 2.25, survivor.z, cssW, cssH);
+      if (sp) {
+        const hpCol = survivor.hp > 65 ? "#4ade80" : survivor.hp > 35 ? "#fbbf24" : "#f87171";
+        drawWorldPill(ctx, sp.x, sp.y + 8, `${isPl ? "GRACZ" : "SURVIVOR"} · ${Math.round(survivor.hp)} HP`, hpCol, cssW, cssH, isCompact ? 9 : 10);
+      }
+
+      // North-West Stairwell Gate Lock/Horde indicator (desktop only so phone stays ultra clean)
+      if (!isCompact) {
+        const gp = projectToScreen(viewProj, -6.75, 2.35, -5.25, cssW, cssH);
+        if (gp) {
+          const gTxt = !directorOn || phase === "PEAK"
+            ? (isPl ? "BRAMY: FALA HORDY!" : "SPAWN GATES: HORDE!")
+            : phase === "RELAX"
+              ? (isPl ? "BRAMY ZABLOKOWANE (0/s)" : "GATES LOCKED (RELAX)")
+            : phase === "FADE"
+              ? (isPl ? "BRAMY WYCISZONE (0/s)" : "SPAWNS PAUSED (FADE)")
+              : (isPl ? "BRAMY: NARASTANIE" : "SPAWN GATES: RAMPING");
+          drawWorldPill(ctx, gp.x, gp.y, gTxt, phaseCol, cssW, cssH, 9.5);
+        }
+      }
+
+      // Dropped Medkit Supply Pill (offset cleanly above Survivor pill if close!)
+      for (const mk of medkits) {
+        const mp = projectToScreen(viewProj, mk.x, mk.y + 1.85, mk.z, cssW, cssH);
+        if (mp) {
+          const nearSurv = sp && Math.hypot(mp.x - sp.x, mp.y - sp.y) < 42;
+          drawWorldPill(ctx, mp.x, nearSurv ? mp.y - 26 : mp.y, isPl ? "APTECZKA DIRECTORA (+40 HP!)" : "DIRECTOR MEDKIT (+40 HP!)", "#34d399", cssW, cssH, isCompact ? 9.5 : 10.5);
+        }
+      }
+    }
+
+    // 2. Corner Telemetry & Emotional Rollercoaster Graph (hidden in ?hud=0)
     if (!document.body.classList.contains("no-hud")) {
       const hdrBottom = document.querySelector("header")?.getBoundingClientRect().bottom || 52;
       const py = Math.max(54, Math.round(hdrBottom) + 6);
-      if (cssW < 640) {
+      if (isCompact) {
         const pill = `${phaseLabel} · ${Math.round(intensity)}% · HP ${Math.round(survivor.hp)}`;
         ctx.save();
         ctx.font = "800 10.5px ui-monospace, SFMono-Regular, Menlo, monospace";
         const tw = Math.min(cssW - 20, ctx.measureText(pill).width + 20);
         const px = (cssW - tw) * 0.5;
-        ctx.fillStyle = "rgba(10, 14, 24, 0.86)";
+        ctx.fillStyle = "rgba(9, 13, 24, 0.88)";
         ctx.strokeStyle = phaseCol; ctx.lineWidth = 1.4;
         ctx.beginPath(); ctx.roundRect(px, py, tw, 24, 6); ctx.fill(); ctx.stroke();
         ctx.fillStyle = phaseCol; ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -343,7 +426,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         const pad = 14, panelW = Math.min(308, cssW - 28), panelH = 158;
         const px = cssW - panelW - pad;
         ctx.save();
-        ctx.fillStyle = "rgba(10, 14, 24, 0.86)";
+        ctx.fillStyle = "rgba(9, 13, 24, 0.88)";
         ctx.strokeStyle = phaseCol; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 10); ctx.fill(); ctx.stroke();
 
@@ -352,16 +435,13 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         ctx.fillStyle = phaseCol;
         ctx.fillText(`${directorOn ? "AI DIRECTOR" : "NO DIRECTOR"} · ${phaseLabel}`, px + 12, py + 21);
 
-        // Live Scrolling Emotional Intensity Curve (Left 4 Dead Rollercoaster!)
         const gx = px + 12, gy = py + 32, gw = panelW - 24, gh = 56;
         ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
         ctx.beginPath(); ctx.roundRect(gx, gy, gw, gh, 5); ctx.fill();
-        // Peak threshold dashed line (80%)
         ctx.strokeStyle = "rgba(248, 113, 113, 0.35)";
         ctx.setLineDash([4, 4]);
-        ctx.beginPath(); ctx.moveTo(gx, gy + gh * 0.20); ctx.lineTo(gx + gw, gy + gh * 0.20); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(gx, gy + gh * 0.22); ctx.lineTo(gx + gw, gy + gh * 0.22); ctx.stroke();
         ctx.setLineDash([]);
-        // Waveform polyline
         ctx.strokeStyle = phaseCol;
         ctx.lineWidth = 2.2;
         ctx.beginPath();
@@ -389,8 +469,8 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       ctx.font = "800 13.5px ui-monospace, SFMono-Regular, Menlo, monospace";
       const tw = ctx.measureText(bannerText).width;
       const bw = Math.min(cssW - 24, tw + 26);
-      const bx = (cssW - bw) * 0.5, by = cssW < 640 ? 86 : 76;
-      ctx.fillStyle = "rgba(10, 14, 24, 0.92)";
+      const bx = (cssW - bw) * 0.5, by = isCompact ? 86 : 76;
+      ctx.fillStyle = "rgba(9, 13, 24, 0.92)";
       ctx.strokeStyle = bannerColor; ctx.lineWidth = 1.8;
       ctx.beginPath(); ctx.roundRect(bx, by, bw, 30, 8); ctx.fill(); ctx.stroke();
       ctx.fillStyle = bannerColor; ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -411,6 +491,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       ];
     },
     onAction(id) {
+      userInteracted = true;
       if (id === "toggle-director") {
         directorOn = !directorOn;
         audio?.ruleSwitch?.(directorOn);
@@ -418,7 +499,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       } else if (id === "peak-wave") {
         triggerPeakWave();
       } else if (id === "shoot") {
-        fireShotgun();
+        fireShotgun(null, null, { silent: false });
       }
       requestHudRefresh?.();
     },
@@ -429,7 +510,10 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       else if (code === "Space") this.onAction("shoot");
     },
     onClickWorld(world, { button } = {}) {
-      if (button === 0 && world) fireShotgun(world[0], world[2]);
+      if (button === 0 && world) {
+        userInteracted = true;
+        fireShotgun(world[0], world[2], { silent: false });
+      }
     },
     update,
     render(w, h, cam, ovCtx, cssW, cssH, lang) {

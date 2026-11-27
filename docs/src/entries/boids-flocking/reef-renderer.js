@@ -246,7 +246,7 @@ precision highp float;
 layout(location=0) in vec3 aPos;
 layout(location=1) in vec2 aUv;
 layout(location=2) in vec4 aCol;
-layout(location=3) in float aKind; // 0 = ribbon/vector arrow, 1 = radius ring, 2 = bubble/orb
+layout(location=3) in float aKind; // 0 = ribbon/vector arrow, 1 = radius ring, 2 = bubble/orb, 3 = seabed swim shadow
 uniform mat4 uViewProj;
 out vec2 vUv;
 out vec4 vCol;
@@ -284,7 +284,7 @@ void main() {
     float a = (ring + fill) * c.a;
     if (a < 0.01) discard;
     fragColor = vec4(mix(c.rgb, vec3(1.0), ring * 0.32), clamp(a, 0.0, 0.92));
-  } else {
+  } else if (vKind < 2.5) {
     // Rising reef bubble / glowing orb
     vec2 p = vUv * 2.0 - 1.0;
     float r = length(p);
@@ -292,6 +292,12 @@ void main() {
     if (s < 0.01) discard;
     float rim = smoothstep(0.45, 0.85, r) * 0.55;
     fragColor = vec4(mix(c.rgb, vec3(1.0), rim), s * c.a);
+  } else {
+    // Soft underwater swim shadow cast onto turquoise ocean seabed!
+    vec2 p = vUv * 2.0 - 1.0;
+    float s = smoothstep(1.0, 0.10, length(p));
+    if (s < 0.01) discard;
+    fragColor = vec4(c.rgb, s * c.a);
   }
 }
 `;
@@ -408,7 +414,7 @@ export function createReefRenderer(gl) {
   const fxVbo = gl.createBuffer();
   gl.bindVertexArray(fxVao);
   gl.bindBuffer(gl.ARRAY_BUFFER, fxVbo);
-  gl.bufferData(gl.ARRAY_BUFFER, 4 * 10 * 4000, gl.DYNAMIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, 4 * 10 * 5600, gl.DYNAMIC_DRAW);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 40, 0);
   gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 40, 12);
   gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 40, 20);
@@ -430,16 +436,16 @@ export function createReefRenderer(gl) {
   const uFTime = gl.getUniformLocation(fxProg, "uTime");
 
   const fxBuf = [];
-  function pushRingXZ(cx, y, cz, rad, col) {
+  function pushRingXZ(cx, y, cz, rad, col, kind = 1) {
     const [r, g, b, a] = col;
     const x0 = cx - rad, x1 = cx + rad, z0 = cz - rad, z1 = cz + rad;
     fxBuf.push(
-      x0, y, z0, 0, 0, r, g, b, a, 1,
-      x1, y, z0, 1, 0, r, g, b, a, 1,
-      x1, y, z1, 1, 1, r, g, b, a, 1,
-      x0, y, z0, 0, 0, r, g, b, a, 1,
-      x1, y, z1, 1, 1, r, g, b, a, 1,
-      x0, y, z1, 0, 1, r, g, b, a, 1
+      x0, y, z0, 0, 0, r, g, b, a, kind,
+      x1, y, z0, 1, 0, r, g, b, a, kind,
+      x1, y, z1, 1, 1, r, g, b, a, kind,
+      x0, y, z0, 0, 0, r, g, b, a, kind,
+      x1, y, z1, 1, 1, r, g, b, a, kind,
+      x0, y, z1, 0, 1, r, g, b, a, kind
     );
   }
 
@@ -536,8 +542,15 @@ export function createReefRenderer(gl) {
         gl.drawElements(gl.TRIANGLES, sharkGpu.count, gl.UNSIGNED_SHORT, 0);
       }
 
-      // Dynamic FX: Hero Gold Boid Perception & Separation Rings + 3D Force Vector Beams + Shark Fear Ring + Bubbles
+      // Dynamic FX: Seabed Swim Shadows + Hero Gold Boid Perception & Separation Rings + 3D Force Vector Beams + Bubbles!
       fxBuf.length = 0;
+      for (let i = 0; i < state.boids.length; i++) {
+        const b = state.boids[i];
+        pushRingXZ(b.x - 0.24, 0.035, b.z - 0.20, b.isHero ? 0.56 : 0.38 * b.scale, [0.01, 0.08, 0.14, 0.44], 3);
+      }
+      if (state.shark.active) {
+        pushRingXZ(state.shark.x - 0.28, 0.04, state.shark.z - 0.22, 1.18, [0.01, 0.07, 0.12, 0.54], 3);
+      }
       const hero = state.boids[0];
       if (state.showVectors && hero) {
         // Outer perception radius (Cyan) & inner separation radius (Coral Red)

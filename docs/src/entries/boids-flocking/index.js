@@ -436,27 +436,46 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
     const isPl = lang === "pl";
     const hero = boids[0];
 
-    // 1) Crisp world labels for Gold Inspector Boid's 3 Live Vectors!
+    // 1) Crisp world labels for Gold Inspector Boid & its 3 Live Force Vectors (SEP / ALI / COH)!
     if (showVectors && hero) {
-      const hs = projectToScreen(viewProj, hero.x, hero.y + 0.52, hero.z, cssW, cssH);
-      if (hs) {
+      const drawMiniTag = (pt, text, col) => {
+        if (!pt) return;
         ctx.save();
-        ctx.font = "800 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+        ctx.font = "800 10px ui-monospace, SFMono-Regular, Menlo, monospace";
+        const tw = ctx.measureText(text).width + 10;
+        ctx.fillStyle = "rgba(6, 18, 32, 0.88)";
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.roundRect(pt.x - tw * 0.5, pt.y - 9, tw, 18, 5);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = col;
         ctx.textAlign = "center";
-        ctx.fillStyle = "#fde047";
-        ctx.fillText(isPl ? "INSPEKTOR BOID" : "HERO BOID", hs.x, hs.y - 6);
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, pt.x, pt.y + 0.5);
         ctx.restore();
+      };
+
+      const hs = projectToScreen(viewProj, hero.x, hero.y + 0.65, hero.z, cssW, cssH);
+      drawMiniTag(hs, isPl ? "INSPEKTOR BOID" : "HERO BOID", "#fde047");
+
+      if (rules.separation && Math.hypot(hero.fSepX, hero.fSepZ) > 0.28) {
+        const sp = projectToScreen(viewProj, hero.x + hero.fSepX * 0.62, hero.y + 0.20, hero.z + hero.fSepZ * 0.62, cssW, cssH);
+        drawMiniTag(sp, "SEP", "#fb7185");
       }
+      if (rules.alignment && Math.hypot(hero.fAliX, hero.fAliZ) > 0.28) {
+        const ap = projectToScreen(viewProj, hero.x + hero.fAliX * 0.62, hero.y + 0.22, hero.z + hero.fAliZ * 0.62, cssW, cssH);
+        drawMiniTag(ap, isPl ? "ZGD" : "ALI", "#38bdf8");
+      }
+      if (rules.cohesion && Math.hypot(hero.fCohX, hero.fCohZ) > 0.28) {
+        const cp = projectToScreen(viewProj, hero.x + hero.fCohX * 0.62, hero.y + 0.24, hero.z + hero.fCohZ * 0.62, cssW, cssH);
+        drawMiniTag(cp, isPl ? "SPÓ" : "COH", "#34d399");
+      }
+
       if (shark.active) {
-        const ss = projectToScreen(viewProj, shark.x, shark.y + 0.85, shark.z, cssW, cssH);
-        if (ss) {
-          ctx.save();
-          ctx.font = "800 11px ui-monospace, SFMono-Regular, Menlo, monospace";
-          ctx.textAlign = "center";
-          ctx.fillStyle = "#fda4af";
-          ctx.fillText(isPl ? "DRAPIEŻNIK" : "PREDATOR", ss.x, ss.y);
-          ctx.restore();
-        }
+        const ss = projectToScreen(viewProj, shark.x, shark.y + 0.95, shark.z, cssW, cssH);
+        drawMiniTag(ss, isPl ? "DRAPIEŻNIK" : "PREDATOR", "#fda4af");
       }
     }
 

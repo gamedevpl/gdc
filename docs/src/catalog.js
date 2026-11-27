@@ -28,12 +28,12 @@ export const CODEX_ENTRIES = [
       pl: "Czemu '10% dropu' w RPG i Docie po cichu rośnie po każdym pudle, żebyś nigdy nie miał serii 30 porażek.",
     },
     note: {
-      en: "Click the Gilded Chest (or Space) to roll loot, or press [V] to simulate 100 pulls! Compare Hidden Pity + PRD (secretly ramps from 3% up to 100% guaranteed by pull #12) vs True 10% RNG where brutal 25+ miss dry streaks hit constantly.",
-      pl: "Kliknij Skrzynię (lub Spację), żeby losować loot, albo wciśnij [V] dla symulacji 100 otwarć! Porównaj Ukryty Pity + PRD (szansa rośnie po cichu od 3% do 100% przy 12. próbie) z Prawdziwym 10% RNG pełnym bolesnych serii 25+ porażek.",
+      en: "Watch BOTH royal chests roll side-by-side off the exact same RNG stream! Left (True 10% RNG) stacks a towering crimson dry-streak tower (20+ misses), while Right (Hidden Pity + PRD) fills its golden charge ring and guarantees a Legendary by pull #12. Click / Space to Open Both, or [V] for a 50× Race!",
+      pl: "Obserwuj OBIE skrzynie losujące obok siebie z tej samej kości RNG! Lewa (Czyste 10%) piętrzy czerwoną wieżę 20+ pudeł, a Prawa (Ukryty Pity + PRD) ładuje złoty pierścień i gwarantuje Legendę najpóźniej przy 12. próbie. Klik / Spacja otwiera obie, a [V] robi wyścig 50×!",
     },
     hint: {
-      en: "Space / Click = Open Chest · V = Simulate 100× · T = Pity+PRD / True 10% RNG · R = Reset",
-      pl: "Spacja / Klik = Otwórz Skrzynię · V = Symuluj 100× · T = Pity+PRD / Czyste 10% · R = Reset",
+      en: "Space / Click = Open Both · V = Race 50× · T = Cycle Pity Cap (12 / 8 / 16) · R = Reset",
+      pl: "Spacja / Klik = Otwórz Obie · V = Wyścig 50× · T = Zmień Limit Pity (12 / 8 / 16) · R = Reset",
     },
   },
   {
@@ -109,12 +109,12 @@ export const CODEX_ENTRIES = [
       pl: "Czemu w Halo i Destiny trafiasz w głowę, choć celownik był obok: zakrzywianie pocisków ±7.5° i tarcie.",
     },
     note: {
-      en: "Aim with your mouse (or A/D) and fire with Click / Space at the strafing target bots! Press Near-Miss Test [V] to fire 5 deliberate +4.8° off-target shots: with Magnetism ON [T] all 5 plasma arcs visibly bend into headshots — in Raw 0° mode all 5 whiz past.",
-      pl: "Celuj myszką (lub A/D) i strzelaj LPM / Spacją do ruchomych botów! Wciśnij Test Pudła [V] (+4.8° obok celu): z Magnetyzmem [T] wszystkie 5 strzałów zakrzywia się w głowę — w trybie Raw 0° wszystkie przelatują obok.",
+      en: "Watch the auto-demo fire deliberate +5.2° off-target shots (or aim with Mouse / A-D and fire with Click / Space)! With Magnetism ON [T] the plasma arc visibly curves into a headshot — toggle Raw 0° [T] or press Near-Miss Test [V] to watch identical shots whiz past.",
+      pl: "Obserwuj auto-demo oddające celowe strzały +5.2° obok celu (albo celuj myszką / A-D i strzelaj LPM / Spacją)! Z Magnetyzmem [T] łuk plazmy zakrzywia się w głowę — przełącz Raw 0° [T] lub wciśnij Test Pudła [V], żeby zobaczyć pudła.",
     },
     hint: {
-      en: "Mouse / A-D = Aim · Click / Space = Fire · V = Near-Miss (+4.8°) Test · T = Magnetism / Raw 0° · X = Cones",
-      pl: "Mysz / A-D = Celuj · Klik / Spacja = Strzał · V = Test +4.8° · T = Magnetyzm / Raw 0° · X = Stożki",
+      en: "Mouse / A-D = Aim · Click / Space = Fire · V = Near-Miss (+5.2°) Test · T = Magnetism / Raw 0° · X = Cones",
+      pl: "Mysz / A-D = Celuj · Klik / Spacja = Strzał · V = Test +5.2° · T = Magnetyzm / Raw 0° · X = Stożki",
     },
   },
   {

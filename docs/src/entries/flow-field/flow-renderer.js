@@ -1,11 +1,11 @@
 // Dedicated 3D Tactical Siege Highlands WebGL2 Renderer for "Flow Field & Dynamic NavMesh" (#10).
-// Linear PBR + ACES filmic + live Integration Distance Heatmap Floor + dynamic 3D Obsidian Bastion Walls,
-// 96 Blender-sculpted Clockwork Hover-Bots flowing smoothly along 3D glowing chevron Flow Arrows toward
-// the spinning Golden Goal Beacon Spire!
+// Studio Polish: 1024x1024 PCF Shadow Map cast by dynamic 3D Obsidian Bastion Walls onto the Integration Heatmap +
+// soft contact shadow discs beneath all 96 Clockwork Hover-Bots + glowing chevron Flow Arrows & Golden Goal Spire!
 import {
   clamp,
   makeLookAt,
   makePerspective,
+  makeOrtho,
   mulMat4,
   cameraBasisFromOrbit,
   FULL_VS,
@@ -13,6 +13,7 @@ import {
 } from "../../gl-utils.js";
 import { getFlowMeshes } from "../../flow-mesh.js";
 
+const SHADOW_RES = 1024;
 export const COLS = 16;
 export const ROWS = 12;
 export const TILE = 1.0;
@@ -41,6 +42,18 @@ void main() {
 }
 `;
 
+const SHADOW_WORLD_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos;
+uniform mat4 uLightVP;
+void main() { gl_Position = uLightVP * vec4(aPos, 1.0); }
+`;
+
+const SHADOW_FS = `#version 300 es
+precision highp float;
+void main() {}
+`;
+
 const WORLD_VS = `#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;
@@ -48,15 +61,18 @@ layout(location=1) in vec3 aNorm;
 layout(location=2) in vec3 aCol;
 layout(location=3) in float aMat;
 uniform mat4 uViewProj;
+uniform mat4 uLightVP;
 out vec3 vPos;
 out vec3 vNorm;
 out vec3 vCol;
 out float vMat;
+out vec4 vShadow;
 void main() {
   vPos = aPos;
   vNorm = aNorm;
   vCol = aCol;
   vMat = aMat;
+  vShadow = uLightVP * vec4(aPos, 1.0);
   gl_Position = uViewProj * vec4(aPos, 1.0);
 }
 `;
@@ -67,10 +83,26 @@ in vec3 vPos;
 in vec3 vNorm;
 in vec3 vCol;
 in float vMat;
+in vec4 vShadow;
 
+uniform sampler2D uShadowMap;
 uniform vec3 uCamPos;
 uniform float uTime;
 out vec4 fragColor;
+
+float calcShadow(vec4 sp, float ndl) {
+  vec3 p = sp.xyz / sp.w * 0.5 + 0.5;
+  if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0 || p.z > 1.0) return 1.0;
+  float bias = max(0.0022 * (1.0 - ndl), 0.0009);
+  vec2 tex = 1.0 / vec2(textureSize(uShadowMap, 0));
+  float s = 0.0;
+  for (int x = -1; x <= 1; x++) {
+    for (int y = -1; y <= 1; y++) {
+      s += (p.z - bias <= texture(uShadowMap, p.xy + vec2(x, y) * tex).r) ? 1.0 : 0.0;
+    }
+  }
+  return s / 9.0;
+}
 
 void main() {
   vec3 N = normalize(vNorm);
@@ -81,45 +113,41 @@ void main() {
   vec3 emissive = vec3(0.0);
 
   if (vMat < 0.5) {
-    // Tactical tile floor with subtle bevel grid lines & soft heat glow
     vec2 f = fract(vPos.xz);
     float g = 1.0 - smoothstep(0.025, 0.065, min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)));
     albedo = mix(base, base * 0.42, g * 0.65);
-    emissive = base * 0.16;
+    emissive = base * 0.14;
     rough = mix(0.44, 0.68, g);
   } else if (vMat < 1.5) {
-    // 3D Obsidian Bastion Wall with crisp horizontal stone seams & glowing emerald top trim
     float seam = smoothstep(0.04, 0.09, abs(fract(vPos.y * 1.6) - 0.5));
     float topTrim = smoothstep(1.18, 1.24, vPos.y);
     albedo = base * mix(0.75, 1.05, seam);
     emissive = vec3(0.08, 0.58, 0.42) * topTrim * 0.35;
     rough = 0.42;
   } else if (vMat < 2.5) {
-    // Glowing Portal / Goal Tile accent
     float pulse = 0.78 + 0.22 * sin(uTime * 4.5);
     emissive = base * 0.95 * pulse;
     rough = 0.18;
   } else {
-    // Canyon rim slate
     rough = 0.62;
   }
 
   vec3 sunDir = normalize(vec3(0.38, 0.88, 0.30));
   float ndl = max(dot(N, sunDir), 0.0);
+  float sh = calcShadow(vShadow, ndl);
   vec3 H = normalize(sunDir + V);
   float spec = pow(max(dot(N, H), 0.0), mix(14.0, 56.0, 1.0 - rough)) * (1.0 - rough) * 0.48;
 
-  vec3 amb = mix(vec3(0.07, 0.10, 0.13), vec3(0.24, 0.34, 0.38), N.y * 0.5 + 0.5);
-  vec3 lit = albedo * (amb + vec3(1.0, 1.04, 1.08) * (0.28 + 0.72 * ndl))
-           + vec3(0.86, 0.98, 0.96) * spec
-           + emissive;
+  vec3 amb = mix(vec3(0.08, 0.11, 0.14), vec3(0.26, 0.36, 0.40), N.y * 0.5 + 0.5);
+  vec3 lit = albedo * (amb + vec3(1.06, 1.08, 1.12) * ndl * (0.28 + 0.72 * sh))
+           + vec3(0.86, 0.98, 0.96) * spec * (0.35 + 0.65 * sh)
+           + emissive * (0.55 + 0.45 * sh);
 
   lit = (lit * (2.51 * lit + 0.03)) / (lit * (2.43 * lit + 0.59) + 0.14);
   fragColor = vec4(pow(clamp(lit, 0.0, 1.0), vec3(1.0 / 2.2)), 1.0);
 }
 `;
 
-// Sculpted Unit & Spire Shader
 const UNIT_VS = `#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;
@@ -130,8 +158,8 @@ layout(location=4) in float aPart;
 
 uniform mat4 uViewProj;
 uniform vec3 uOrigin;
-uniform vec4 uPose;   // x: yaw, y: spinPart1, z: bob, w: scale
-uniform vec4 uTint;   // rgb + strength (red tint when stuck in Naive mode!)
+uniform vec4 uPose;
+uniform vec4 uTint;
 
 out vec3 vPos;
 out vec3 vNorm;
@@ -148,17 +176,14 @@ void main() {
   vec3 p = aPos;
   vec3 n = aNorm;
   int part = int(aPart + 0.5);
-
   if (part == 1) {
     p = rotY(p, uPose.y);
     n = rotY(n, uPose.y);
     p.y += uPose.z;
   }
-
   p *= uPose.w;
   vec3 wp = rotY(p, uPose.x) + uOrigin;
   vec3 wn = normalize(rotY(n, uPose.x));
-
   vPos = wp;
   vNorm = wn;
   vCol = mix(aCol, uTint.rgb, clamp(uTint.a, 0.0, 1.0));
@@ -196,11 +221,9 @@ void main() {
            + vec3(0.95, 1.0, 1.05) * spec
            + rimCol * rim;
 
-  // Emissive Hover-Bot Emerald Visor (turns crimson when stuck!)
   if (vRough < 0.08 && vCol.g > 0.85 && vCol.r < 0.75) {
     lit += vStuck > 0.35 ? vec3(2.1, 0.18, 0.22) : vec3(0.18, 2.05, 1.25);
   }
-  // Emissive Goal Spire Golden Crystal
   if (vRough < 0.08 && vCol.r > 0.88 && vCol.g > 0.72) {
     lit += vec3(2.15, 1.55, 0.24);
   }
@@ -210,13 +233,12 @@ void main() {
 }
 `;
 
-// Translucent FX Shader: Directional Flow Chevron Arrows on Every Tile, Rings & Arrival Sparks!
 const FX_VS = `#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;
 layout(location=1) in vec2 aUv;
 layout(location=2) in vec4 aCol;
-layout(location=3) in float aKind; // 0 = directional chevron arrow, 1 = ring, 2 = spark orb
+layout(location=3) in float aKind; // 0 = chevron arrow, 1 = ring, 2 = spark orb, 3 = bot contact shadow
 uniform mat4 uViewProj;
 out vec2 vUv;
 out vec4 vCol;
@@ -240,13 +262,9 @@ out vec4 fragColor;
 void main() {
   vec4 c = vCol;
   if (vKind < 0.5) {
-    // Crisp glowing directional Flow Arrow pointing toward +vUv.y (top of quad)!
-    vec2 p = vUv * 2.0 - 1.0; // x in [-1,1], y in [-1,1], points +y!
-    // Animated wave pulse traveling along the arrow direction!
+    vec2 p = vUv * 2.0 - 1.0;
     float pulse = 0.78 + 0.22 * sin(vUv.y * 6.0 - uTime * 7.5);
-    // Shaft: |x| < 0.14, y in [-0.68, 0.22]
     float shaft = smoothstep(0.18, 0.09, abs(p.x)) * smoothstep(-0.72, -0.58, p.y) * smoothstep(0.28, 0.12, p.y);
-    // Arrowhead triangle: tip at (0, 0.76), base at y = 0.08, half-width = 0.58
     float dy = 0.76 - p.y;
     float head = smoothstep(0.0, 0.08, dy) * smoothstep(0.72, 0.62, dy) * smoothstep(dy * 0.85 + 0.06, dy * 0.85 - 0.05, abs(p.x));
     float shape = clamp(max(shaft, head), 0.0, 1.0);
@@ -261,12 +279,18 @@ void main() {
     float a = (ring + fill) * c.a;
     if (a < 0.01) discard;
     fragColor = vec4(mix(c.rgb, vec3(1.0), ring * 0.38), clamp(a, 0.0, 0.92));
-  } else {
+  } else if (vKind < 2.5) {
     vec2 p = vUv * 2.0 - 1.0;
     float r = length(p);
     float s = smoothstep(1.0, 0.10, r);
     if (s < 0.01) discard;
     fragColor = vec4(mix(c.rgb, vec3(1.0), smoothstep(0.45, 0.0, r) * 0.72), s * c.a);
+  } else {
+    // Crisp Hover-Bot ground contact shadow disc!
+    vec2 p = vUv * 2.0 - 1.0;
+    float s = smoothstep(1.0, 0.12, length(p));
+    if (s < 0.01) discard;
+    fragColor = vec4(c.rgb, s * c.a);
   }
 }
 `;
@@ -288,9 +312,8 @@ function pushBox(buf, x0, x1, y0, y1, z0, z1, col, matId) {
 
 function heatColor(dist, maxDist, showHeatmap) {
   if (!showHeatmap) return [0.18, 0.25, 0.28];
-  if (!Number.isFinite(dist)) return [0.16, 0.13, 0.18]; // unreachable dark plum
+  if (!Number.isFinite(dist)) return [0.16, 0.13, 0.18];
   const t = clamp(dist / Math.max(8, maxDist), 0, 1);
-  // 0 (Goal): radiant gold-emerald -> 0.45 emerald-cyan -> 1.0 deep sapphire-teal
   if (t < 0.35) {
     const u = t / 0.35;
     return [0.78 * (1 - u) + 0.14 * u, 0.68 * (1 - u) + 0.62 * u, 0.18 * (1 - u) + 0.44 * u];
@@ -300,16 +323,36 @@ function heatColor(dist, maxDist, showHeatmap) {
 }
 
 export function createFlowRenderer(gl) {
-  const [skyProg, worldProg, unitProg, fxProg] = linkPrograms(gl, [
+  const [skyProg, shWorldProg, worldProg, unitProg, fxProg] = linkPrograms(gl, [
     [FULL_VS, SKY_FS],
+    [SHADOW_WORLD_VS, SHADOW_FS],
     [WORLD_VS, WORLD_FS],
     [UNIT_VS, UNIT_FS],
     [FX_VS, FX_FS],
   ]);
 
+  // 1024x1024 PCF Shadow Map FBO (auto-rebaked whenever walls change!)
+  const shadowTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, shadowTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, SHADOW_RES, SHADOW_RES, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const shadowFbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shadowTex, 0);
+  gl.drawBuffers([gl.NONE]);
+  gl.readBuffer(gl.NONE);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  const lightVP = mulMat4(
+    makeOrtho(-11.0, 11.0, -9.2, 9.2, 1.0, 34.0),
+    makeLookAt([7.2, 16.5, 5.8], [0, 0, 0], [0, 1, 0])
+  );
+
   const emptyVao = gl.createVertexArray();
 
-  // Dynamic Grid + Walls VAO (rebuilt only when walls/goal/overlay change!)
   const worldVao = gl.createVertexArray();
   const worldVbo = gl.createBuffer();
   gl.bindVertexArray(worldVao);
@@ -320,7 +363,6 @@ export function createFlowRenderer(gl) {
   gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 40, 24);
   gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 40, 36);
 
-  // Sculpted Bot & Spire Meshes
   const meshes = getFlowMeshes();
   function uploadUnit(m) {
     const vao = gl.createVertexArray();
@@ -341,19 +383,21 @@ export function createFlowRenderer(gl) {
   const botGpu = uploadUnit(meshes.bot);
   const spireGpu = uploadUnit(meshes.spire);
 
-  // Dynamic FX VAO (Flow Chevron Arrows + Rings + Sparks)
   const fxVao = gl.createVertexArray();
   const fxVbo = gl.createBuffer();
   gl.bindVertexArray(fxVao);
   gl.bindBuffer(gl.ARRAY_BUFFER, fxVbo);
-  gl.bufferData(gl.ARRAY_BUFFER, 4 * 10 * 4000, gl.DYNAMIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, 4 * 10 * 6400, gl.DYNAMIC_DRAW);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 40, 0);
   gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 40, 12);
   gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 40, 20);
   gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 40, 36);
   gl.bindVertexArray(null);
 
+  const uShWVP = gl.getUniformLocation(shWorldProg, "uLightVP");
   const uWVP = gl.getUniformLocation(worldProg, "uViewProj");
+  const uWLightVP = gl.getUniformLocation(worldProg, "uLightVP");
+  const uWShadow = gl.getUniformLocation(worldProg, "uShadowMap");
   const uWCam = gl.getUniformLocation(worldProg, "uCamPos");
   const uWTime = gl.getUniformLocation(worldProg, "uTime");
 
@@ -369,6 +413,19 @@ export function createFlowRenderer(gl) {
   let worldVertCount = 0;
   let lastGridVersion = -1;
 
+  function bakeShadow() {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFbo);
+    gl.viewport(0, 0, SHADOW_RES, SHADOW_RES);
+    gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.disable(gl.BLEND);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
+    gl.useProgram(shWorldProg);
+    gl.uniformMatrix4fv(uShWVP, false, lightVP);
+    gl.bindVertexArray(worldVao);
+    gl.drawArrays(gl.TRIANGLES, 0, worldVertCount);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
   function rebuildWorld(state) {
     const buf = [];
     const hx = COLS * 0.5;
@@ -376,14 +433,12 @@ export function createFlowRenderer(gl) {
     const rimCol = [0.11, 0.16, 0.19];
     const wallCol = [0.24, 0.30, 0.36];
 
-    // Outer tactical canyon plinth rim
     pushBox(buf, -hx - 0.45, hx + 0.45, -0.55, 0.0, -hz - 0.45, hz + 0.45, rimCol, 3);
     pushBox(buf, -hx - 0.45, hx + 0.45, 0.0, 0.24, -hz - 0.45, -hz, rimCol, 3);
     pushBox(buf, -hx - 0.45, -hx, 0.0, 0.24, -hz, hz + 0.45, rimCol, 3);
     pushBox(buf, hx, hx + 0.45, 0.0, 0.24, -hz, hz + 0.45, rimCol, 3);
     pushBox(buf, -hx - 0.45, hx + 0.45, 0.0, 0.16, hz, hz + 0.45, rimCol, 3);
 
-    // Per-tile heatmap floor + 3D Obsidian Bastion Walls!
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const idx = r * COLS + c;
@@ -400,7 +455,6 @@ export function createFlowRenderer(gl) {
               ? [0.16, 0.72, 0.96]
               : heatColor(state.dist[idx], state.maxDist, state.showField && state.flowMode);
           const mat = (isGoal || isSpawn) ? 2 : 0;
-          // Top face of tile
           buf.push(
             x0, 0.01, z1, 0, 1, 0, col[0], col[1], col[2], mat,
             x1, 0.01, z1, 0, 1, 0, col[0], col[1], col[2], mat,
@@ -417,22 +471,22 @@ export function createFlowRenderer(gl) {
     worldVertCount = arr.length / 10;
     gl.bindBuffer(gl.ARRAY_BUFFER, worldVbo);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, arr);
+    bakeShadow();
     lastGridVersion = state.gridVersion;
   }
 
   const fxBuf = [];
   function pushArrowXZ(cx, y, cz, dirX, dirZ, halfSize, col) {
-    // Rotate quad on XZ plane so +V (0, +1) points along (dirX, dirZ)!
     const len = Math.hypot(dirX, dirZ);
     if (len < 0.05) return;
     const fx = dirX / len, fz = dirZ / len;
-    const rx = -fz, rz = fx; // right perpendicular
+    const rx = -fz, rz = fx;
     const s = halfSize;
     const [r, g, b, a] = col;
-    const p0 = [cx - rx * s - fx * s, y, cz - rz * s - fz * s]; // uv (0,0)
-    const p1 = [cx + rx * s - fx * s, y, cz + rz * s - fz * s]; // uv (1,0)
-    const p2 = [cx + rx * s + fx * s, y, cz + rz * s + fz * s]; // uv (1,1)
-    const p3 = [cx - rx * s + fx * s, y, cz - rz * s + fz * s]; // uv (0,1)
+    const p0 = [cx - rx * s - fx * s, y, cz - rz * s - fz * s];
+    const p1 = [cx + rx * s - fx * s, y, cz + rz * s - fz * s];
+    const p2 = [cx + rx * s + fx * s, y, cz + rz * s + fz * s];
+    const p3 = [cx - rx * s + fx * s, y, cz - rz * s + fz * s];
     fxBuf.push(
       p0[0], p0[1], p0[2], 0, 0, r, g, b, a, 0,
       p1[0], p1[1], p1[2], 1, 0, r, g, b, a, 0,
@@ -443,16 +497,16 @@ export function createFlowRenderer(gl) {
     );
   }
 
-  function pushRingXZ(cx, y, cz, rad, col) {
+  function pushRingXZ(cx, y, cz, rad, col, kind = 1) {
     const [r, g, b, a] = col;
     const x0 = cx - rad, x1 = cx + rad, z0 = cz - rad, z1 = cz + rad;
     fxBuf.push(
-      x0, y, z0, 0, 0, r, g, b, a, 1,
-      x1, y, z0, 1, 0, r, g, b, a, 1,
-      x1, y, z1, 1, 1, r, g, b, a, 1,
-      x0, y, z0, 0, 0, r, g, b, a, 1,
-      x1, y, z1, 1, 1, r, g, b, a, 1,
-      x0, y, z1, 0, 1, r, g, b, a, 1
+      x0, y, z0, 0, 0, r, g, b, a, kind,
+      x1, y, z0, 1, 0, r, g, b, a, kind,
+      x1, y, z1, 1, 1, r, g, b, a, kind,
+      x0, y, z0, 0, 0, r, g, b, a, kind,
+      x1, y, z1, 1, 1, r, g, b, a, kind,
+      x0, y, z1, 0, 1, r, g, b, a, kind
     );
   }
 
@@ -499,15 +553,18 @@ export function createFlowRenderer(gl) {
       gl.enable(gl.CULL_FACE);
       gl.cullFace(gl.BACK);
 
-      // Tactical Grid + Heatmap + 3D Obsidian Bastion Walls
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, shadowTex);
+
       gl.useProgram(worldProg);
       gl.uniformMatrix4fv(uWVP, false, viewProj);
+      gl.uniformMatrix4fv(uWLightVP, false, lightVP);
+      gl.uniform1i(uWShadow, 0);
       gl.uniform3fv(uWCam, basis.pos);
       gl.uniform1f(uWTime, state.time);
       gl.bindVertexArray(worldVao);
       gl.drawArrays(gl.TRIANGLES, 0, worldVertCount);
 
-      // 96 Sculpted Siege Hover-Bots + Spinning Golden Goal Beacon Spire
       gl.useProgram(unitProg);
       gl.uniformMatrix4fv(uUVP, false, viewProj);
       gl.uniform3fv(uUCam, basis.pos);
@@ -524,7 +581,6 @@ export function createFlowRenderer(gl) {
         gl.drawElements(gl.TRIANGLES, botGpu.count, gl.UNSIGNED_SHORT, 0);
       }
 
-      // Radiant Goal Beacon Spire
       const [gx, gz] = tileToWorld(state.goal.c, state.goal.r);
       gl.bindVertexArray(spireGpu.vao);
       gl.uniform3f(uUOrig, gx, 0.01, gz);
@@ -532,7 +588,6 @@ export function createFlowRenderer(gl) {
       gl.uniform4f(uUTint, 0.0, 0.0, 0.0, 0.0);
       gl.drawElements(gl.TRIANGLES, spireGpu.count, gl.UNSIGNED_SHORT, 0);
 
-      // Translucent FX: Live Directional Flow Arrows on EVERY walkable tile + Goal Ring + Spawn Ring + Sparks!
       fxBuf.length = 0;
       if (state.showField) {
         for (let r = 0; r < ROWS; r++) {
@@ -550,7 +605,6 @@ export function createFlowRenderer(gl) {
                 pushArrowXZ(wx, 0.045, wz, fx, fz, 0.36, col);
               }
             } else {
-              // In Naive Mode show straight-line red vectors pointing blindly through walls!
               const dx = gx - wx, dz = gz - wz;
               pushArrowXZ(wx, 0.045, wz, dx, dz, 0.34, [1.0, 0.30, 0.36, 0.56]);
             }
@@ -558,13 +612,16 @@ export function createFlowRenderer(gl) {
         }
       }
 
-      // Goal Spire & Spawn Portal glowing rings
+      // Soft contact shadow discs under all 96 Hover-Bots!
+      for (const u of state.units) {
+        pushRingXZ(u.x - 0.07, 0.032, u.z - 0.06, 0.32, [0.02, 0.05, 0.07, 0.52], 3);
+      }
+
       const pulse = 0.85 + 0.15 * Math.sin(state.time * 4.5);
       pushRingXZ(gx, 0.06, gz, 0.85 * pulse, [1.0, 0.84, 0.24, 0.88]);
       const [sx, sz] = tileToWorld(state.spawn.c, state.spawn.r);
       pushRingXZ(sx, 0.06, sz, 1.15, [0.18, 0.82, 1.0, 0.72]);
 
-      // Sparks on Goal Arrival or Wall Paint
       for (const sp of state.sparks) {
         const a = clamp(sp.life / sp.maxLife, 0, 1);
         pushBillboard(sp.x, sp.y, sp.z, sp.size * (0.4 + 0.6 * a), basis.right, basis.up, [sp.r, sp.g, sp.b, a]);

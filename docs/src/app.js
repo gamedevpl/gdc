@@ -1,8 +1,8 @@
 // Game Design Codex (GDC) shared application shell — sibling to FX Lab.
 // Fullscreen WebGL2 + 2D HUD, procedural Web Audio SFX/Music toggles, live keyboard/mouse gameplay, Follow-Cam & Shake!
-import { CODEX_CATEGORIES, CODEX_ENTRIES, getEntryMeta } from "./catalog.js?v=12";
+import { CODEX_CATEGORIES, CODEX_ENTRIES, getEntryMeta } from "./catalog.js?v=13";
 import { clamp, cameraBasisFromOrbit, screenRayToPlaneY } from "./gl-utils.js";
-import { createAudioEngine } from "./audio.js?v=12";
+import { createAudioEngine } from "./audio.js?v=13";
 import { initSiteMenu } from "./site-menu.js";
 
 const $ = (id) => document.getElementById(id);
@@ -332,7 +332,7 @@ async function loadEntry(id, pushHistory = false) {
   audio.setTheme(meta.id);
   let inst = entryCache.get(meta.id);
   if (!inst) {
-    const mod = await import(meta.module);
+    const mod = await import(`${meta.module}?v=13`);
     inst = mod.createEntry(gl, { requestHudRefresh: renderHud, audio });
     entryCache.set(meta.id, inst);
   }
