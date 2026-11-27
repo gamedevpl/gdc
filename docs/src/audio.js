@@ -1,9 +1,11 @@
-// Studio-Grade Procedural Web Audio API Engine for Game Design Codex (/gdc/).
-// Zero external assets — warm master compressor, low-passed stereo ping-pong ambience delay,
-// pink/brown noise foley, rate-limited non-fatiguing SFX, and optional chill Maj7/m9 ambient soundscapes!
+// Studio ElevenLabs Hybrid Web Audio Engine for Game Design Codex (/gdc/).
+// Plays real ElevenLabs Sound Effects (.mp3, loudness-normalized & silence-trimmed) with AAA pitch-jitter,
+// lazy theme-aware AudioBuffer preloading, smooth crossfading 4-category seamless ambient loops (opt-in OFF by default),
+// master studio compressor, and seamless warm procedural fallback if a sample is still decoding on first click.
 
 const STORAGE_SFX = "gdc_sfx";
 const STORAGE_MUSIC = "gdc_music";
+const SFX_BASE = new URL("../assets/sfx/", import.meta.url).href;
 
 function readPref(key, fallback) {
   try {
@@ -16,54 +18,6 @@ function readPref(key, fallback) {
 function writePref(key, val) {
   try { localStorage.setItem(key, val ? "1" : "0"); } catch {}
 }
-
-// Chill studio Maj7/m9 ambient music palettes (slow 110–125 BPM, warm low-pass filtered, zero harsh square/sawtooth!)
-const AMBIENT_PALETTES = {
-  feel: {
-    stepMs: 480,
-    cutoff: 1250,
-    chords: [
-      [174.61, 220.00, 261.63, 329.63, 392.00], // Fmaj7
-      [146.83, 220.00, 261.63, 329.63, 440.00], // Dm9
-      [130.81, 196.00, 246.94, 293.66, 392.00], // Cmaj9
-      [196.00, 246.94, 293.66, 329.63, 392.00], // G6
-    ],
-    arp: [0, 2, 4, 3, 1, 3, 2, 4],
-  },
-  ai: {
-    stepMs: 520,
-    cutoff: 1120,
-    chords: [
-      [110.00, 164.81, 196.00, 246.94, 329.63], // Am9
-      [174.61, 220.00, 261.63, 329.63, 392.00], // Fmaj7
-      [146.83, 220.00, 261.63, 329.63, 440.00], // Dm9
-      [164.81, 196.00, 246.94, 293.66, 329.63], // Em7
-    ],
-    arp: [0, 3, 2, 4, 2, 1, 3, 2],
-  },
-  crowds: {
-    stepMs: 500,
-    cutoff: 1380,
-    chords: [
-      [130.81, 164.81, 196.00, 246.94, 293.66], // Cmaj9
-      [196.00, 246.94, 293.66, 329.63, 440.00], // G6/9
-      [146.83, 196.00, 220.00, 293.66, 369.99], // D6/9
-      [164.81, 196.00, 246.94, 293.66, 369.99], // Em9
-    ],
-    arp: [0, 2, 3, 4, 3, 2, 4, 1],
-  },
-  systems: {
-    stepMs: 540,
-    cutoff: 1200,
-    chords: [
-      [146.83, 220.00, 261.63, 329.63, 440.00], // Dm9
-      [116.54, 174.61, 220.00, 293.66, 349.23], // Bbmaj7
-      [130.81, 196.00, 261.63, 329.63, 392.00], // Csus2
-      [110.00, 164.81, 220.00, 246.94, 329.63], // Am9
-    ],
-    arp: [0, 2, 4, 2, 1, 3, 4, 2],
-  },
-};
 
 const ENTRY_TO_PALETTE = {
   "coyote-time": "feel",
@@ -82,6 +36,24 @@ const ENTRY_TO_PALETTE = {
   "pity-timer": "systems",
 };
 
+// Theme-specific preload manifests (keeps initial network cost tiny ~40-70 KB per diorama!)
+const THEME_PRELOADS = {
+  "astar": ["wall_place", "wall_erase", "goal_win", "ui_switch_on"],
+  "attack-tokens": ["sword_slash", "hit_enemy", "enemy_ko", "shield_block", "perfect_parry", "dodge_roll", "player_hurt"],
+  "rubber-banding": ["car_crash", "nitro_boost", "goal_win", "ui_switch_on"],
+  "coyote-time": ["jump", "land", "coyote_save", "coin_pickup", "ui_blocked", "fall_void", "goal_win"],
+  "hitstop": ["hammer_swing", "hammer_impact", "golem_shatter", "ui_switch_on", "ui_switch_off"],
+  "fake-1hp": ["railgun_shot", "hit_enemy", "mercy_shield", "dodge_roll", "player_hurt", "ui_switch_on"],
+  "camera-deadzone": ["jump", "land", "sand_dash", "coin_pickup", "goal_win", "ui_switch_on"],
+  "stealth-cones": ["coin_clink", "coin_pickup", "alert_sting", "goal_win", "ui_switch_on"],
+  "boids-flocking": ["water_ripple", "ui_switch_on", "ui_switch_off"],
+  "flow-field": ["wall_place", "wall_erase", "ui_switch_on", "ui_switch_off", "goal_win"],
+  "bullet-magnetism": ["railgun_shot", "hit_enemy", "coyote_save", "ui_blocked", "ui_switch_on", "ui_switch_off"],
+  "ai-director": ["shotgun_blast", "player_hurt", "mercy_shield", "coin_pickup", "alert_sting", "ui_switch_on"],
+  "bsp-dungeon": ["wall_place", "ui_switch_on", "ui_switch_off", "goal_win"],
+  "pity-timer": ["chest_legendary", "coin_pickup", "ui_switch_on", "ui_switch_off"],
+};
+
 export function createAudioEngine() {
   let ctx = null;
   let master = null;
@@ -97,10 +69,18 @@ export function createAudioEngine() {
   let unlocked = false;
   let tabHidden = false;
   let currentTheme = "pity-timer";
-  let stepIndex = 0;
-  let timerId = null;
 
-  // Per-event cooldown map to prevent auto-demos or rapid bursts from spamming audio!
+  // Decoded ElevenLabs AudioBuffer cache & in-flight fetches
+  const bufferCache = new Map();
+  const pendingLoads = new Map();
+  const failedLoads = new Set();
+
+  // Active seamless ambient loop state
+  let activeAmbKey = null;
+  let activeAmbSrc = null;
+  let activeAmbGain = null;
+
+  // Per-event cooldown map to prevent rapid bursts from spamming audio
   const lastFired = new Map();
   function throttle(key, minMs) {
     const now = performance.now();
@@ -110,7 +90,7 @@ export function createAudioEngine() {
     return true;
   }
 
-  // Smooth warm car engine hum for Rubber Banding (filtered triangle + sub sine, zero harsh sawtooth buzz!)
+  // Smooth warm car engine hum for Rubber Banding (real-time speed-tracked)
   let engOsc1 = null, engOsc2 = null, engGain = null, engFilter = null;
 
   function buildNoiseBuffers(ac) {
@@ -143,13 +123,100 @@ export function createAudioEngine() {
     });
   }
 
+  function loadSample(name) {
+    if (!ctx || failedLoads.has(name)) return Promise.resolve(null);
+    if (bufferCache.has(name)) return Promise.resolve(bufferCache.get(name));
+    if (pendingLoads.has(name)) return pendingLoads.get(name);
+
+    const p = fetch(`${SFX_BASE}${name}.mp3?v=14`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.arrayBuffer();
+      })
+      .then((arr) => ctx.decodeAudioData(arr))
+      .then((decoded) => {
+        bufferCache.set(name, decoded);
+        pendingLoads.delete(name);
+        return decoded;
+      })
+      .catch(() => {
+        failedLoads.add(name);
+        pendingLoads.delete(name);
+        return null;
+      });
+    pendingLoads.set(name, p);
+    return p;
+  }
+
+  function preloadTheme(themeId) {
+    if (!ctx) return;
+    const list = THEME_PRELOADS[themeId] || ["ui_switch_on", "ui_switch_off"];
+    for (const name of list) loadSample(name);
+    if (musicOn) {
+      const pal = ENTRY_TO_PALETTE[themeId] || "feel";
+      loadSample(`amb_${pal}`).then(() => syncAmbientTrack());
+    }
+  }
+
+  function stopActiveAmbient(fadeSec = 0.35) {
+    if (!ctx || !activeAmbSrc || !activeAmbGain) return;
+    const oldSrc = activeAmbSrc;
+    const oldGain = activeAmbGain;
+    activeAmbSrc = null;
+    activeAmbGain = null;
+    activeAmbKey = null;
+    const now = ctx.currentTime;
+    try {
+      oldGain.gain.cancelScheduledValues(now);
+      oldGain.gain.setValueAtTime(Math.max(0.0001, oldGain.gain.value), now);
+      oldGain.gain.exponentialRampToValueAtTime(0.0001, now + fadeSec);
+      oldSrc.stop(now + fadeSec + 0.05);
+    } catch {}
+  }
+
+  function syncAmbientTrack() {
+    if (!ctx || !unlocked) return;
+    if (!musicOn || tabHidden) {
+      stopActiveAmbient(0.28);
+      return;
+    }
+    const pal = ENTRY_TO_PALETTE[currentTheme] || "feel";
+    const ambKey = `amb_${pal}`;
+    if (activeAmbKey === ambKey && activeAmbSrc) return;
+
+    const buf = bufferCache.get(ambKey);
+    if (!buf) {
+      loadSample(ambKey).then((loaded) => {
+        if (loaded && musicOn && !tabHidden) syncAmbientTrack();
+      });
+      return;
+    }
+
+    stopActiveAmbient(0.65);
+    const now = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(0.55, now + 0.90);
+    src.connect(g);
+    g.connect(musicBus);
+    src.start(now);
+
+    activeAmbKey = ambKey;
+    activeAmbSrc = src;
+    activeAmbGain = g;
+  }
+
   function applyGains() {
     if (!ctx || !master) return;
     const now = ctx.currentTime;
     const active = !tabHidden;
-    master.gain.setTargetAtTime(active ? 0.72 : 0.0001, now, 0.05);
-    sfxBus.gain.setTargetAtTime(sfxOn && active ? 0.56 : 0.0001, now, 0.04);
-    musicBus.gain.setTargetAtTime(musicOn && active ? 0.22 : 0.0001, now, 0.14);
+    master.gain.setTargetAtTime(active ? 0.80 : 0.0001, now, 0.04);
+    sfxBus.gain.setTargetAtTime(sfxOn && active ? 0.72 : 0.0001, now, 0.03);
+    musicBus.gain.setTargetAtTime(musicOn && active ? 0.34 : 0.0001, now, 0.14);
+    syncAmbientTrack();
   }
 
   function ensureContext() {
@@ -162,41 +229,41 @@ export function createAudioEngine() {
     ctx = new AC();
     buildNoiseBuffers(ctx);
 
-    // Master studio glue compressor + gentle 6.2 kHz warmth roll-off
+    // Master studio glue compressor + gentle 10.5 kHz silky top-end polish
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -16;
-    comp.knee.value = 20;
-    comp.ratio.value = 5.0;
-    comp.attack.value = 0.005;
-    comp.release.value = 0.18;
+    comp.threshold.value = -14;
+    comp.knee.value = 18;
+    comp.ratio.value = 4.0;
+    comp.attack.value = 0.004;
+    comp.release.value = 0.16;
 
     const warmth = ctx.createBiquadFilter();
     warmth.type = "lowpass";
-    warmth.frequency.value = 6200;
+    warmth.frequency.value = 10500;
     warmth.Q.value = 0.5;
 
     master = ctx.createGain();
-    master.gain.value = 0.72;
+    master.gain.value = 0.80;
     comp.connect(warmth);
     warmth.connect(master);
     master.connect(ctx.destination);
 
     sfxBus = ctx.createGain();
-    sfxBus.gain.value = sfxOn ? 0.56 : 0.0001;
+    sfxBus.gain.value = sfxOn ? 0.72 : 0.0001;
     sfxBus.connect(comp);
 
     musicBus = ctx.createGain();
-    musicBus.gain.value = musicOn ? 0.22 : 0.0001;
+    musicBus.gain.value = musicOn ? 0.34 : 0.0001;
     musicBus.connect(comp);
 
-    // Warm stereo ping-pong ambience delay send (like FX Lab!)
+    // Subtle stereo ping-pong ambience send for shimmering chimes & parries
     delaySend = ctx.createGain();
-    delaySend.gain.value = 0.26;
-    const dL = ctx.createDelay(1.0); dL.delayTime.value = 0.24;
-    const dR = ctx.createDelay(1.0); dR.delayTime.value = 0.34;
-    const fbL = ctx.createGain(); fbL.gain.value = 0.32;
-    const fbR = ctx.createGain(); fbR.gain.value = 0.30;
-    const damp = ctx.createBiquadFilter(); damp.type = "lowpass"; damp.frequency.value = 1750;
+    delaySend.gain.value = 0.22;
+    const dL = ctx.createDelay(1.0); dL.delayTime.value = 0.22;
+    const dR = ctx.createDelay(1.0); dR.delayTime.value = 0.31;
+    const fbL = ctx.createGain(); fbL.gain.value = 0.24;
+    const fbR = ctx.createGain(); fbR.gain.value = 0.22;
+    const damp = ctx.createBiquadFilter(); damp.type = "lowpass"; damp.frequency.value = 2100;
     const merger = ctx.createChannelMerger(2);
     delaySend.connect(damp);
     damp.connect(dL); damp.connect(dR);
@@ -227,25 +294,60 @@ export function createAudioEngine() {
 
     unlocked = true;
     applyGains();
-    startAmbientLoop();
+    preloadTheme(currentTheme);
     return true;
   }
 
   function unlock() { ensureContext(); }
   function setSfxOn(v) { sfxOn = !!v; writePref(STORAGE_SFX, sfxOn); applyGains(); }
-  function setMusicOn(v) { musicOn = !!v; writePref(STORAGE_MUSIC, musicOn); applyGains(); }
+  function setMusicOn(v) {
+    musicOn = !!v;
+    writePref(STORAGE_MUSIC, musicOn);
+    if (musicOn) ensureContext();
+    applyGains();
+  }
   function setTheme(themeId) {
     currentTheme = themeId;
     if (themeId !== "rubber-banding") setEngine(0, false);
+    if (ctx && unlocked) {
+      preloadTheme(themeId);
+      syncAmbientTrack();
+    }
   }
 
-  // Warm filtered synth note with soft attack/release and optional stereo delay send
-  function playSoftTone(f0, f1, dur, vol, { type = "sine", cutoff = 2400, bus = null, delay = 0, wet = 0.18, attack = 0.010 } = {}) {
-    if (!ctx || !unlocked || tabHidden || f0 <= 0) return;
-    const targetBus = bus || sfxBus;
-    if (targetBus === sfxBus && !sfxOn) return;
-    if (targetBus === musicBus && !musicOn) return;
+  // Play decoded ElevenLabs sample with AAA subtle pitch jitter & optional stereo delay send!
+  function playSample(name, { gain = 0.72, rate = 1.0, jitter = 0.055, wet = 0.0, fallback = null } = {}) {
+    if (!ctx || !unlocked || !sfxOn || tabHidden) return false;
+    const buf = bufferCache.get(name);
+    if (!buf) {
+      loadSample(name);
+      if (fallback) fallback();
+      return false;
+    }
+    const now = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const r = rate * (1 + (Math.random() * 2 - 1) * jitter);
+    src.playbackRate.setValueAtTime(Math.max(0.5, Math.min(2.0, r)), now);
 
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain, now);
+    src.connect(g);
+    g.connect(sfxBus);
+
+    if (wet > 0 && delaySend) {
+      const wg = ctx.createGain();
+      wg.gain.value = wet;
+      g.connect(wg);
+      wg.connect(delaySend);
+    }
+    src.start(now);
+    return true;
+  }
+
+  // Warm lightweight synth helpers (used only as instant 0ms fallback before a sample finishes decoding, + melodic stepTone!)
+  function playSoftTone(f0, f1, dur, vol, { type = "sine", cutoff = 2200, delay = 0, wet = 0.16, attack = 0.010 } = {}) {
+    if (!ctx || !unlocked || !sfxOn || tabHidden || f0 <= 0) return;
     const now = ctx.currentTime + delay;
     const osc = ctx.createOscillator();
     const flt = ctx.createBiquadFilter();
@@ -253,31 +355,21 @@ export function createAudioEngine() {
     osc.type = type;
     osc.frequency.setValueAtTime(f0, now);
     if (f1 !== f0) osc.frequency.exponentialRampToValueAtTime(Math.max(24, f1), now + dur);
-
     flt.type = "lowpass";
     flt.frequency.setValueAtTime(cutoff, now);
-    flt.Q.value = 0.7;
-
     g.gain.setValueAtTime(0.0001, now);
     g.gain.linearRampToValueAtTime(vol, now + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-
-    osc.connect(flt);
-    flt.connect(g);
-    g.connect(targetBus);
+    osc.connect(flt); flt.connect(g); g.connect(sfxBus);
     if (wet > 0 && delaySend) {
-      const wg = ctx.createGain();
-      wg.gain.value = wet;
-      g.connect(wg);
-      wg.connect(delaySend);
+      const wg = ctx.createGain(); wg.gain.value = wet; g.connect(wg); wg.connect(delaySend);
     }
-    osc.start(now);
-    osc.stop(now + dur + 0.03);
+    osc.start(now); osc.stop(now + dur + 0.03);
   }
 
-  function playFoleyNoise(dur, { buf = "pink", filterType = "bandpass", freq = 900, freqEnd = null, q = 1.4, vol = 0.12, attack = 0.005, delay = 0 } = {}) {
+  function playFoleyNoise(dur, { buf = "pink", filterType = "bandpass", freq = 900, freqEnd = null, q = 1.4, vol = 0.10 } = {}) {
     if (!ctx || !unlocked || !sfxOn || tabHidden || !pinkBuf) return;
-    const now = ctx.currentTime + delay;
+    const now = ctx.currentTime;
     const src = ctx.createBufferSource();
     src.buffer = buf === "brown" ? brownBuf : pinkBuf;
     src.loop = true;
@@ -286,43 +378,13 @@ export function createAudioEngine() {
     flt.frequency.setValueAtTime(freq, now);
     if (freqEnd !== null) flt.frequency.exponentialRampToValueAtTime(Math.max(40, freqEnd), now + dur);
     flt.Q.setValueAtTime(q, now);
-
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.linearRampToValueAtTime(vol, now + attack);
+    g.gain.linearRampToValueAtTime(vol, now + 0.005);
     g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-
     src.connect(flt); flt.connect(g); g.connect(sfxBus);
     src.start(now, Math.random() * 1.2);
     src.stop(now + dur + 0.03);
-  }
-
-  // Slow, lush ambient Maj7/m9 pad + sparse kalimba pulse (ZERO chiptune buzz!)
-  function startAmbientLoop() {
-    if (timerId) return;
-    const tick = () => {
-      const pal = AMBIENT_PALETTES[ENTRY_TO_PALETTE[currentTheme] || "feel"];
-      if (ctx && ctx.state === "running" && musicOn && !tabHidden) {
-        const chordIdx = Math.floor(stepIndex / 8) % pal.chords.length;
-        const chord = pal.chords[chordIdx];
-        const beat = stepIndex % 8;
-
-        // Warm swelling chord pad on beat 0
-        if (beat === 0) {
-          playSoftTone(chord[0] * 0.5, chord[0] * 0.5, pal.stepMs * 0.0076, 0.15, { type: "sine", cutoff: 620, bus: musicBus, wet: 0.25, attack: 0.35 });
-          playSoftTone(chord[1], chord[1], pal.stepMs * 0.0072, 0.075, { type: "triangle", cutoff: pal.cutoff * 0.65, bus: musicBus, wet: 0.35, attack: 0.45 });
-          playSoftTone(chord[3], chord[3], pal.stepMs * 0.0072, 0.065, { type: "sine", cutoff: pal.cutoff * 0.75, bus: musicBus, wet: 0.40, attack: 0.50 });
-        }
-        // Gentle Rhodes/kalimba pluck on sparse beats
-        if (beat === 0 || beat === 2 || beat === 3 || beat === 5 || beat === 6) {
-          const note = chord[pal.arp[beat] % chord.length] * (beat === 5 ? 2.0 : 1.0);
-          playSoftTone(note, note, pal.stepMs * 0.0028, 0.09, { type: "sine", cutoff: pal.cutoff, bus: musicBus, wet: 0.48, attack: 0.016 });
-        }
-      }
-      stepIndex++;
-      timerId = setTimeout(tick, (AMBIENT_PALETTES[ENTRY_TO_PALETTE[currentTheme] || "feel"]).stepMs);
-    };
-    tick();
   }
 
   function setEngine(speedNorm, nitroOn) {
@@ -336,7 +398,7 @@ export function createAudioEngine() {
     engOsc1.frequency.setTargetAtTime(baseFreq, now, 0.06);
     engOsc2.frequency.setTargetAtTime(baseFreq * 1.5, now, 0.06);
     engFilter.frequency.setTargetAtTime(160 + speedNorm * 280 + (nitroOn ? 220 : 0), now, 0.07);
-    engGain.gain.setTargetAtTime(0.028 + speedNorm * 0.024 + (nitroOn ? 0.015 : 0), now, 0.07);
+    engGain.gain.setTargetAtTime(0.024 + speedNorm * 0.020 + (nitroOn ? 0.014 : 0), now, 0.07);
   }
 
   return {
@@ -344,208 +406,187 @@ export function createAudioEngine() {
     isUnlocked: () => unlocked,
     getSfxOn: () => sfxOn,
     getMusicOn: () => musicOn,
+    getSampleStats: () => ({
+      loaded: bufferCache.size,
+      pending: pendingLoads.size,
+      failed: failedLoads.size,
+      ambient: activeAmbKey,
+    }),
     setSfxOn,
     setMusicOn,
     setTheme,
     setEngine,
 
-    // --- Warm, Non-Fatiguing, Rate-Limited Foley & Musical SFX ---
+    // --- Racing (#03) ---
     crash() {
       if (!ensureContext() || !throttle("crash", 160)) return;
-      playSoftTone(115, 36, 0.24, 0.22, { type: "triangle", cutoff: 520, wet: 0.12 });
-      playFoleyNoise(0.24, { buf: "brown", filterType: "lowpass", freq: 420, freqEnd: 120, vol: 0.18 });
+      playSample("car_crash", { gain: 0.78, jitter: 0.07, fallback: () => playSoftTone(115, 36, 0.24, 0.18, { type: "triangle", cutoff: 520 }) });
     },
     carBump() {
       if (!ensureContext() || !throttle("bump", 120)) return;
-      playSoftTone(140, 58, 0.12, 0.16, { type: "triangle", cutoff: 680 });
-      playFoleyNoise(0.09, { buf: "brown", freq: 520, vol: 0.11 });
+      playSample("car_crash", { gain: 0.44, rate: 1.25, jitter: 0.08, fallback: () => playSoftTone(140, 58, 0.12, 0.13, { type: "triangle", cutoff: 680 }) });
     },
     wallScrape() {
       if (!ensureContext() || !throttle("scrape", 110)) return;
-      playFoleyNoise(0.08, { buf: "pink", freq: 920, q: 1.8, vol: 0.07 });
+      playFoleyNoise(0.08, { buf: "pink", freq: 920, q: 1.8, vol: 0.06 });
     },
     nitro() {
       if (!ensureContext() || !throttle("nitro", 220)) return;
-      playFoleyNoise(0.22, { buf: "pink", freq: 720, freqEnd: 1650, q: 1.4, vol: 0.10 });
-      playSoftTone(240, 480, 0.20, 0.09, { type: "sine", cutoff: 1400, wet: 0.25 });
+      playSample("nitro_boost", { gain: 0.68, jitter: 0.05, wet: 0.12, fallback: () => playSoftTone(240, 480, 0.20, 0.09) });
     },
     elasticTwang(boost = true) {
       if (!ensureContext() || !throttle("twang", 240)) return;
-      playSoftTone(boost ? 260 : 440, boost ? 440 : 260, 0.22, 0.09, { type: "sine", cutoff: 1200, wet: 0.30 });
+      playSample(boost ? "coyote_save" : "ui_switch_off", { gain: 0.45, rate: boost ? 1.0 : 0.92, jitter: 0.04, fallback: () => playSoftTone(boost ? 260 : 440, boost ? 440 : 260, 0.22, 0.08) });
     },
     lapChime() {
       if (!ensureContext() || !throttle("lap", 350)) return;
-      [523.25, 659.25, 783.99].forEach((f, i) => playSoftTone(f, f, 0.24, 0.11, { type: "sine", delay: i * 0.07, wet: 0.42 }));
+      playSample("goal_win", { gain: 0.62, rate: 1.08, jitter: 0.02, wet: 0.18, fallback: () => playSoftTone(523.25, 783.99, 0.24, 0.10) });
     },
 
-    // Combat & Warhammer
+    // --- Melee Combat (#02) & Warhammer (#05) ---
     slash(combo = 0) {
       if (!ensureContext() || !throttle("slash", 95)) return;
-      playFoleyNoise(0.14, { buf: "pink", freq: combo === 2 ? 920 : 1350, freqEnd: 460, q: 1.8, vol: 0.12 });
-      playSoftTone(combo === 2 ? 220 : 300, 130, 0.12, 0.08, { type: "triangle", cutoff: 950 });
+      playSample("sword_slash", { gain: combo === 2 ? 0.78 : 0.62, rate: combo === 2 ? 0.88 : 1.0 + combo * 0.08, jitter: 0.06, fallback: () => playFoleyNoise(0.14, { freq: 1200, freqEnd: 460 }) });
     },
     hitEnemy(heavy = false) {
       if (!ensureContext() || !throttle("hit", 85)) return;
-      playSoftTone(heavy ? 145 : 185, 52, 0.16, heavy ? 0.22 : 0.15, { type: "triangle", cutoff: 760 });
-      playFoleyNoise(0.10, { buf: "brown", freq: 620, vol: 0.12 });
+      playSample("hit_enemy", { gain: heavy ? 0.82 : 0.64, rate: heavy ? 0.86 : 1.04, jitter: 0.07, fallback: () => playSoftTone(170, 54, 0.15, 0.16, { type: "triangle" }) });
     },
     enemyKo() {
       if (!ensureContext() || !throttle("ko", 140)) return;
-      playSoftTone(440, 659.25, 0.18, 0.11, { type: "sine", wet: 0.36 });
-      playSoftTone(659.25, 880, 0.26, 0.10, { type: "sine", delay: 0.07, wet: 0.42 });
+      playSample("enemy_ko", { gain: 0.72, jitter: 0.05, wet: 0.14, fallback: () => playSoftTone(440, 659.25, 0.20, 0.10) });
     },
     block() {
       if (!ensureContext() || !throttle("block", 100)) return;
-      playSoftTone(540, 380, 0.13, 0.13, { type: "triangle", cutoff: 1400, wet: 0.22 });
-      playFoleyNoise(0.07, { buf: "pink", freq: 1800, q: 2.5, vol: 0.08 });
+      playSample("shield_block", { gain: 0.70, jitter: 0.06, fallback: () => playSoftTone(540, 380, 0.13, 0.12, { type: "triangle" }) });
     },
     parry() {
       if (!ensureContext() || !throttle("parry", 150)) return;
-      playSoftTone(783.99, 1174.66, 0.24, 0.15, { type: "sine", wet: 0.46 });
-      playSoftTone(1174.66, 1567.98, 0.30, 0.12, { type: "sine", delay: 0.055, wet: 0.50 });
+      playSample("perfect_parry", { gain: 0.84, jitter: 0.03, wet: 0.24, fallback: () => playSoftTone(880, 1320, 0.24, 0.13) });
     },
     dodge() {
       if (!ensureContext() || !throttle("dodge", 110)) return;
-      playFoleyNoise(0.13, { buf: "pink", freq: 740, freqEnd: 380, q: 1.2, vol: 0.09 });
+      playSample("dodge_roll", { gain: 0.58, jitter: 0.07, fallback: () => playFoleyNoise(0.12, { freq: 720, freqEnd: 380 }) });
     },
     tokenPass() {
       if (!ensureContext() || !throttle("token", 140)) return;
-      playSoftTone(523.25, 783.99, 0.18, 0.09, { type: "sine", wet: 0.38 });
+      playSample("ui_switch_on", { gain: 0.44, rate: 1.15, jitter: 0.04, wet: 0.15, fallback: () => playSoftTone(523.25, 783.99, 0.16, 0.08) });
     },
     playerHurt() {
       if (!ensureContext() || !throttle("hurt", 180)) return;
-      playSoftTone(135, 58, 0.20, 0.18, { type: "triangle", cutoff: 580 });
-      playFoleyNoise(0.12, { buf: "brown", filterType: "lowpass", freq: 380, vol: 0.12 });
+      playSample("player_hurt", { gain: 0.72, jitter: 0.06, fallback: () => playSoftTone(135, 58, 0.18, 0.16, { type: "triangle" }) });
     },
 
-    // Maze & Flow Field
+    // --- Maze (#01), Flow Field (#10) & BSP Dungeon (#13) ---
     wallClick(placed = true) {
       if (!ensureContext() || !throttle("wall", 65)) return;
-      playSoftTone(placed ? 220 : 340, placed ? 150 : 440, 0.07, 0.11, { type: "triangle", cutoff: 1100, wet: 0.15 });
-      playFoleyNoise(0.045, { buf: "brown", freq: placed ? 520 : 900, vol: 0.07 });
+      playSample(placed ? "wall_place" : "wall_erase", { gain: 0.62, jitter: 0.07, fallback: () => playSoftTone(placed ? 220 : 340, placed ? 150 : 440, 0.07, 0.09, { type: "triangle" }) });
     },
     stepTone(distToGoal) {
       if (!ensureContext() || !throttle("step", 140)) return;
       const scale = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33, 659.25, 783.99];
       const idx = Math.max(0, Math.min(scale.length - 1, Math.round((1 - Math.min(20, distToGoal) / 20) * (scale.length - 1))));
-      playSoftTone(scale[idx], scale[idx], 0.14, 0.075, { type: "sine", cutoff: 1800, wet: 0.35 });
+      playSoftTone(scale[idx], scale[idx], 0.14, 0.065, { type: "sine", cutoff: 1800, wet: 0.34 });
     },
     goalWin() {
       if (!ensureContext() || !throttle("win", 320)) return;
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
-        playSoftTone(f, f, 0.36, 0.11, { type: "sine", delay: i * 0.075, wet: 0.48 })
-      );
+      playSample("goal_win", { gain: 0.76, jitter: 0.02, wet: 0.22, fallback: () => playSoftTone(523.25, 1046.5, 0.30, 0.10) });
     },
 
-    // Platformer / Coyote Time
+    // --- Platformer (#04, #07) ---
     jump() {
       if (!ensureContext() || !throttle("jump", 90)) return;
-      playSoftTone(260, 490, 0.14, 0.11, { type: "sine", cutoff: 1600, wet: 0.22 });
+      playSample("jump", { gain: 0.62, jitter: 0.06, fallback: () => playSoftTone(260, 490, 0.14, 0.10) });
     },
     coyoteSave() {
       if (!ensureContext() || !throttle("coyote", 120)) return;
-      playSoftTone(392.0, 783.99, 0.18, 0.13, { type: "sine", wet: 0.38 });
-      playSoftTone(783.99, 1046.5, 0.22, 0.10, { type: "sine", delay: 0.05, wet: 0.44 });
+      playSample("coyote_save", { gain: 0.74, jitter: 0.04, wet: 0.22, fallback: () => playSoftTone(392.0, 783.99, 0.18, 0.11) });
     },
     bufferLaunch() {
       if (!ensureContext() || !throttle("buf", 120)) return;
-      playSoftTone(440.0, 880.0, 0.17, 0.13, { type: "sine", wet: 0.38 });
-      playSoftTone(880.0, 1174.66, 0.20, 0.10, { type: "sine", delay: 0.045, wet: 0.44 });
+      playSample("coyote_save", { gain: 0.72, rate: 1.12, jitter: 0.04, wet: 0.22, fallback: () => playSoftTone(440.0, 880.0, 0.17, 0.11) });
     },
     inputIgnored() {
       if (!ensureContext() || !throttle("ign", 150)) return;
-      // Soft wooden muted thud instead of harsh sawtooth buzzer!
-      playSoftTone(175, 115, 0.12, 0.12, { type: "triangle", cutoff: 620 });
+      playSample("ui_blocked", { gain: 0.60, jitter: 0.05, fallback: () => playSoftTone(175, 115, 0.12, 0.10, { type: "triangle" }) });
     },
     land() {
       if (!ensureContext() || !throttle("land", 90)) return;
-      playFoleyNoise(0.06, { buf: "brown", filterType: "lowpass", freq: 420, vol: 0.09 });
-      playSoftTone(125, 72, 0.07, 0.08, { type: "sine", cutoff: 450 });
+      playSample("land", { gain: 0.48, jitter: 0.08, fallback: () => playFoleyNoise(0.06, { buf: "brown", filterType: "lowpass", freq: 420 }) });
     },
     coinPickup() {
       if (!ensureContext() || !throttle("coin", 90)) return;
-      playSoftTone(880, 880, 0.11, 0.09, { type: "sine", wet: 0.38 });
-      playSoftTone(1174.66, 1174.66, 0.22, 0.09, { type: "sine", delay: 0.06, wet: 0.46 });
+      playSample("coin_pickup", { gain: 0.64, jitter: 0.06, wet: 0.16, fallback: () => playSoftTone(880, 1174.66, 0.18, 0.08) });
     },
     fallVoid() {
       if (!ensureContext() || !throttle("fall", 280)) return;
-      playSoftTone(290, 105, 0.32, 0.12, { type: "sine", cutoff: 900, wet: 0.30 });
+      playSample("fall_void", { gain: 0.62, jitter: 0.04, wet: 0.16, fallback: () => playSoftTone(290, 105, 0.30, 0.10) });
     },
 
-    // Hitstop Warhammer (deep warm sub-bass anvil punch vs soft dry tap)
+    // --- Hitstop Warhammer (#05) ---
     hammerSwing(juicy = true) {
       if (!ensureContext() || !throttle("hsw", 110)) return;
-      playFoleyNoise(juicy ? 0.18 : 0.08, { buf: "pink", freq: juicy ? 560 : 780, freqEnd: 260, vol: juicy ? 0.13 : 0.05 });
+      playSample("hammer_swing", { gain: juicy ? 0.68 : 0.34, rate: juicy ? 1.0 : 1.24, jitter: 0.06, fallback: () => playFoleyNoise(0.16, { freq: 560, freqEnd: 260 }) });
     },
     hammerImpact(juicy = true, heavy = false) {
       if (!ensureContext() || !throttle("himp", 130)) return;
       if (!juicy) {
-        playSoftTone(170, 120, 0.06, 0.06, { type: "sine", cutoff: 520 });
+        playSample("ui_blocked", { gain: 0.38, rate: 1.25, jitter: 0.05, fallback: () => playSoftTone(170, 120, 0.06, 0.06) });
         return;
       }
-      playSoftTone(heavy ? 115 : 145, 36, heavy ? 0.28 : 0.20, heavy ? 0.26 : 0.20, { type: "triangle", cutoff: 620, wet: 0.16 });
-      playSoftTone(heavy ? 784 : 988, heavy ? 587 : 740, 0.18, 0.08, { type: "sine", wet: 0.34 });
-      playFoleyNoise(heavy ? 0.20 : 0.13, { buf: "brown", freq: 680, vol: heavy ? 0.18 : 0.13 });
+      playSample("hammer_impact", { gain: heavy ? 0.92 : 0.74, rate: heavy ? 0.88 : 1.02, jitter: 0.05, wet: 0.16, fallback: () => playSoftTone(130, 38, 0.24, 0.20, { type: "triangle" }) });
     },
     golemShatter(juicy = true) {
       if (!ensureContext() || !throttle("shat", 220)) return;
-      playFoleyNoise(0.32, { buf: "brown", filterType: "lowpass", freq: 580, freqEnd: 140, vol: juicy ? 0.18 : 0.07 });
-      if (juicy) {
-        playSoftTone(140, 42, 0.32, 0.20, { type: "triangle", cutoff: 520 });
-        playSoftTone(587.33, 880, 0.28, 0.10, { type: "sine", delay: 0.06, wet: 0.42 });
-      }
+      playSample("golem_shatter", { gain: juicy ? 0.84 : 0.40, jitter: 0.05, wet: juicy ? 0.16 : 0.0, fallback: () => playFoleyNoise(0.30, { buf: "brown", filterType: "lowpass", freq: 520 }) });
     },
 
-    // Cyber / Railgun Plasma Shot (warm filtered sci-fi pluck, NEVER ear-piercing sawtooth!)
+    // --- Sci-Fi Railgun (#06, #11), Tactical Shotgun (#12), Mercy Shield & Dash ---
     laserShot(friendly = true) {
       if (!ensureContext() || !throttle("laser", 95)) return;
-      if (friendly) {
-        playSoftTone(680, 260, 0.12, 0.11, { type: "triangle", cutoff: 1850, wet: 0.26 });
-      } else {
-        playSoftTone(420, 190, 0.11, 0.07, { type: "sine", cutoff: 1100, wet: 0.18 });
-      }
+      playSample("railgun_shot", { gain: friendly ? 0.66 : 0.42, rate: friendly ? 1.04 : 0.82, jitter: 0.06, wet: 0.10, fallback: () => playSoftTone(friendly ? 680 : 420, 220, 0.12, 0.09, { type: "triangle" }) });
+    },
+    shotgun() {
+      if (!ensureContext() || !throttle("shotgun", 140)) return;
+      playSample("shotgun_blast", { gain: 0.72, jitter: 0.07, wet: 0.08, fallback: () => playSoftTone(140, 44, 0.18, 0.18, { type: "triangle" }) });
     },
     laserHit() {
       if (!ensureContext() || !throttle("lhit", 110)) return;
-      playSoftTone(165, 68, 0.14, 0.15, { type: "triangle", cutoff: 680 });
-      playFoleyNoise(0.09, { buf: "pink", freq: 920, vol: 0.09 });
+      playSample("hit_enemy", { gain: 0.58, rate: 1.15, jitter: 0.07, fallback: () => playSoftTone(165, 68, 0.14, 0.13, { type: "triangle" }) });
     },
     mercyShield() {
       if (!ensureContext() || !throttle("msh", 220)) return;
-      playSoftTone(392.0, 783.99, 0.24, 0.13, { type: "sine", wet: 0.42 });
-      playSoftTone(783.99, 1174.66, 0.28, 0.11, { type: "sine", delay: 0.06, wet: 0.48 });
+      playSample("mercy_shield", { gain: 0.74, jitter: 0.03, wet: 0.20, fallback: () => playSoftTone(392.0, 783.99, 0.24, 0.11) });
     },
     sandDash() {
       if (!ensureContext() || !throttle("dash", 120)) return;
-      playFoleyNoise(0.16, { buf: "pink", freq: 1100, freqEnd: 520, vol: 0.11 });
-      playSoftTone(300, 560, 0.13, 0.08, { type: "sine", wet: 0.25 });
+      playSample("sand_dash", { gain: 0.62, jitter: 0.06, fallback: () => playFoleyNoise(0.16, { freq: 1050, freqEnd: 520 }) });
     },
 
-    // Stealth Museum & Reef & UI Switches
+    // --- Stealth Museum (#08), Reef (#09), Vault Loot (#14) & UI Switches ---
+    chestLegendary() {
+      if (!ensureContext() || !throttle("chestLeg", 280)) return;
+      playSample("chest_legendary", { gain: 0.84, jitter: 0.02, wet: 0.24, fallback: () => playSoftTone(523.25, 1046.5, 0.34, 0.11) });
+    },
     coinClink() {
       if (!ensureContext() || !throttle("clink", 130)) return;
-      playSoftTone(1568, 1396, 0.10, 0.09, { type: "sine", cutoff: 3200, wet: 0.40 });
-      playSoftTone(2093, 1975, 0.14, 0.07, { type: "sine", delay: 0.055, cutoff: 3400, wet: 0.45 });
+      playSample("coin_clink", { gain: 0.72, jitter: 0.06, wet: 0.20, fallback: () => playSoftTone(1568, 1396, 0.10, 0.08) });
     },
     suspicionTick(level = 0.5) {
       if (!ensureContext() || !throttle("susp", 180)) return;
-      const f = 330 + level * 320;
-      playSoftTone(f, f * 1.12, 0.09, 0.08, { type: "sine", cutoff: 1600, wet: 0.28 });
+      playSample("ui_switch_on", { gain: 0.36 + level * 0.22, rate: 0.90 + level * 0.40, jitter: 0.03, fallback: () => playSoftTone(330 + level * 320, 400 + level * 340, 0.09, 0.07) });
     },
     alertBuzzer() {
       if (!ensureContext() || !throttle("alert", 320)) return;
-      // Crisp cinematic low-brass + chime sting (dramatic, NOT ear-shredding sawtooth!)
-      playSoftTone(587.33, 659.25, 0.14, 0.14, { type: "triangle", cutoff: 1700, wet: 0.34 });
-      playSoftTone(440.0, 293.66, 0.24, 0.13, { type: "triangle", delay: 0.08, cutoff: 1200, wet: 0.34 });
+      playSample("alert_sting", { gain: 0.76, jitter: 0.03, wet: 0.18, fallback: () => playSoftTone(587.33, 293.66, 0.22, 0.12, { type: "triangle" }) });
     },
     waterRipple() {
       if (!ensureContext() || !throttle("water", 150)) return;
-      playSoftTone(380, 620, 0.16, 0.08, { type: "sine", cutoff: 1400, wet: 0.42 });
-      playFoleyNoise(0.12, { buf: "pink", freq: 720, q: 1.6, vol: 0.05 });
+      playSample("water_ripple", { gain: 0.64, jitter: 0.08, wet: 0.20, fallback: () => playSoftTone(380, 620, 0.16, 0.07) });
     },
     ruleSwitch(on = true) {
       if (!ensureContext() || !throttle("sw", 90)) return;
-      playSoftTone(on ? 440 : 523.25, on ? 659.25 : 349.23, 0.11, 0.09, { type: "sine", cutoff: 1800, wet: 0.28 });
+      playSample(on ? "ui_switch_on" : "ui_switch_off", { gain: 0.58, jitter: 0.04, fallback: () => playSoftTone(on ? 440 : 523.25, on ? 659.25 : 349.23, 0.11, 0.08) });
     },
   };
 }

@@ -135,7 +135,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
       aimYaw = Math.atan2(best.x - survivor.x, best.z - survivor.z);
     }
     survivor.yaw = aimYaw;
-    if (!silent) audio?.hammerImpact?.(true, false);
+    if (!silent) (audio?.shotgun ? audio.shotgun() : audio?.hammerImpact?.(true, false));
 
     for (const off of [-0.14, 0, 0.14]) {
       const a = aimYaw + off;

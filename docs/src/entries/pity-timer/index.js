@@ -162,7 +162,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
 
     if (!quiet) {
       if (right.lastRarity === "LEGENDARY" || left.lastRarity === "LEGENDARY") {
-        audio?.goalWin?.();
+        audio?.chestLegendary ? audio.chestLegendary() : audio?.goalWin?.();
       } else {
         audio?.coinPickup?.();
       }
@@ -224,7 +224,7 @@ export function createEntry(gl, { requestHudRefresh, audio } = {}) {
         burstLeft -= batch;
         burstCd = 0.042;
         if (burstLeft === 0) {
-          audio?.goalWin?.();
+          audio?.chestLegendary ? audio.chestLegendary() : audio?.goalWin?.();
           setBanner(
             `AFTER ${pulls} PULLS · TRUE 10% MAX DRY: ${left.maxDry} ✗  vs  PITY MAX DRY: ${right.maxDry} ✓`,
             "#4ade80",
