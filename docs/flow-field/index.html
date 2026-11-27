@@ -4,27 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Flow Field &amp; Dynamic NavMesh — Game Design Codex | gamedev.pl</title>
-<meta name="description" content="Playable 3D tactical canyon showing how RTS and swarm games guide 96 units at once with ONE O(grid) Flow Field instead of 96 expensive A* searches.">
+<meta name="description" content="How RTS games move 96+ units around walls you paint LIVE using ONE O(grid) vector field instead of 96 A* runs.">
 <link rel="canonical" href="https://gamedevpl.github.io/gdc/flow-field/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Game Design Codex — gamedev.pl">
 <meta property="og:url" content="https://gamedevpl.github.io/gdc/flow-field/">
 <meta property="og:title" content="Flow Field &amp; Dynamic NavMesh — Game Design Codex">
-<meta property="og:description" content="Paint 3D walls live, move the Goal Spire, and watch 96 hover-bots reroute in one shared BFS Flow Field vs getting dead-stuck in Naive Seek.">
+<meta property="og:description" content="How RTS games move 96+ units around walls you paint LIVE using ONE O(grid) vector field instead of 96 A* runs.">
 <meta property="og:image" content="https://gamedevpl.github.io/gdc/thumbs/flow-field.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@plgamedev">
 <meta name="twitter:title" content="Flow Field &amp; Dynamic NavMesh — Game Design Codex">
-<meta name="twitter:description" content="1 shared Flow Field beats 96 separate A* searches — live interactive 3D WebGL2 diorama.">
+<meta name="twitter:description" content="How RTS games move 96+ units around walls you paint LIVE using ONE O(grid) vector field instead of 96 A* runs.">
 <meta name="twitter:image" content="https://gamedevpl.github.io/gdc/thumbs/flow-field.jpg">
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
-<link rel="stylesheet" href="../style.css?v=19">
+<link rel="stylesheet" href="../style.css?v=20">
 </head>
 <body>
 <main>
-  <canvas id="c" aria-label="Interactive 3D Flow Field and Dynamic NavMesh crowd pathing diorama"></canvas>
+  <canvas id="c" aria-label="Interactive 3D Flow Field &amp; Dynamic NavMesh diorama"></canvas>
   <canvas id="ov" aria-hidden="true"></canvas>
 
   <header>
@@ -43,7 +43,7 @@
       <button id="catalogBtn" class="gdc-picker" type="button" aria-haspopup="dialog" aria-expanded="false">
         <span class="gdc-dot" id="pickerDot" aria-hidden="true"></span>
         <span id="pickerName">Flow Field &amp; Dynamic NavMesh</span>
-        <span class="gdc-count" id="pickerCount">21/30</span>
+        <span class="gdc-count" id="pickerCount">37/46</span>
         <span class="gdc-caret" aria-hidden="true">▾</span>
       </button>
       <button id="lang" type="button" aria-label="Switch language">PL</button>
@@ -85,6 +85,6 @@
   <p id="noglBody"></p>
 </div>
 
-<script type="module" src="../src/app.js?v=19"></script>
+<script type="module" src="../src/app.js?v=20"></script>
 </body>
 </html>

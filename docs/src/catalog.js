@@ -10,6 +10,438 @@ export const CODEX_CATEGORIES = [
 
 export const CODEX_ENTRIES = [
   {
+    id: "chunk-streaming",
+    accent: "#22c55e",
+    category: "systems",
+    thumb: "thumbs/chunk-streaming.jpg",
+    module: "./entries/chunk-streaming/index.js",
+    title: {
+      en: "Chunk Streaming & Hysteresis",
+      pl: "Streaming Chunków i Histereza",
+    },
+    kicker: {
+      en: "OPEN WORLD · PLAYABLE MINI-GAME #46",
+      pl: "OTWARTY ŚWIAT · GRYWALNA MINI-GRA #46",
+    },
+    question: {
+      en: "How open-world games stream terrain smoothly without hitching or thrashing when you step back and forth across a chunk border.",
+      pl: "Jak gry z otwartym światem doczytują teren bez ścinek i migotania, gdy cofasz się o krok przez granicę chunka.",
+    },
+    note: {
+      en: "Fly the Scout across the 9×9 voxel world (WASD / Click) or hit [V] Border-Oscillate Test! With Async + Hysteresis ON [T], chunks load inside the emerald inner ring and stay cached until you leave the amber outer ring — zero reloads, flat 8.3ms frame times. Turn [T] OFF for Sync No-Hysteresis thrashing and 48ms crimson hitches.",
+      pl: "Leć Zwiadowcą nad światem 9×9 (WASD / Klik) lub odpal [V] Test Granicy! Z Async + Histerezą [T] chunki ładują się w zielonym pierścieniu i czekają do bursztynowego pierścienia wyładowania — zero ścinek. Wyłącz [T], by zobaczyć synchroniczne migotanie i 48 ms zacięcia klatek.",
+    },
+    hint: {
+      en: "WASD / Click = Fly Scout · V = Border Thrash Test · T = Async + Hysteresis / Sync Thrash · R = Reset",
+      pl: "WASD / Klik = Lot Zwiadowcą · V = Test Granicy · T = Async + Histereza / Sync · R = Reset",
+    },
+  },
+  {
+    id: "structural-collapse",
+    accent: "#f97316",
+    category: "systems",
+    thumb: "thumbs/structural-collapse.jpg",
+    module: "./entries/structural-collapse/index.js",
+    title: {
+      en: "Structural Support & Collapse Graph",
+      pl: "Graf Podparcia i Zawalenia (Valheim)",
+    },
+    kicker: {
+      en: "DESTRUCTION · PLAYABLE MINI-GAME #45",
+      pl: "DESTRUKCJA · GRYWALNA MINI-GRA #45",
+    },
+    question: {
+      en: "How building games compute structural stability from grounded foundations via BFS so knocking out one pillar collapses the roof.",
+      pl: "Jak gry survivalowe liczą stabilność budowli grafem BFS od fundamentów, by wybicie filara zawaliło dach.",
+    },
+    note: {
+      en: "Click any stone block on the watchtower bridge (or press [V] Smash Pillar) to test structural integrity! With Support Graph ON [T], a live BFS from grounded foundations recolors load hops (cyan → gold → red) and detaches unsupported wings cleanly. Toggle [T] OFF to see absurd floating Minecraft blocks hanging in mid-air.",
+      pl: "Kliknij dowolny blok mostu (lub [V] Wybij Filar), by sprawdzić nośność! Z Grafem Podparcia [T] algorytm BFS od fundamentów natychmiast przelicza obciążenie (cyjan → złoto → czerwień) i zawala niepodparte skrzydło. Wyłącz [T], by zobaczyć lewitujące w powietrzu bloki.",
+    },
+    hint: {
+      en: "Click = Smash Block · V = Knock Load-Bearing Pillar · T = Support Graph / Floating Blocks · R = Rebuild",
+      pl: "Klik = Rozbij Blok · V = Wybij Filar Nośny · T = Graf Podparcia / Lewitacja · R = Odbuduj",
+    },
+  },
+  {
+    id: "snapshot-interpolation",
+    accent: "#38bdf8",
+    category: "systems",
+    thumb: "thumbs/snapshot-interpolation.jpg",
+    module: "./entries/snapshot-interpolation/index.js",
+    title: {
+      en: "Snapshot Interpolation & Jitter Buffer",
+      pl: "Interpolacja Snapshotów i Bufor Jittera",
+    },
+    kicker: {
+      en: "NETCODE · PLAYABLE MINI-GAME #44",
+      pl: "NETCODE · GRYWALNA MINI-GRA #44",
+    },
+    question: {
+      en: "How multiplayer clients turn choppy 20 Hz server packets with network jitter into silky-smooth 60 FPS remote movement.",
+      pl: "Jak klienci multiplayer zamieniają rwane pakiety 20 Hz z jitterem sieciowym w jedwabiście płynny ruch 60 FPS.",
+    },
+    note: {
+      en: "Watch 20 Hz server packet orbs arrive over a noisy connection (hit [V] for a 5-second Jitter Storm with packet drops!). With the 100ms Interpolation Buffer ON [T], the client smoothly blends buffered snapshots A → B at 60 FPS. Turn [T] OFF for Raw Packet Snapping and watch the target freeze and violently teleport.",
+      pl: "Patrz na pakiety 20 Hz spływające z sieci (wciśnij [V] dla Burzy Jittera z utratą pakietów!). Z buforem interpolacji 100 ms [T] klient płynnie interpoluje stan A → B w 60 FPS. Wyłącz [T], by zobaczyć szarpanie i teleportowanie się obiektu co pakiet.",
+    },
+    hint: {
+      en: "T = 100ms Interp Buffer / Raw Packet Snap · V = Jitter Storm · X = Toggle Packet Orbs · R = Reset",
+      pl: "T = Bufor Interpolacji / Surowe Pakiety · V = Burza Jittera · X = Pakiety · R = Reset",
+    },
+  },
+  {
+    id: "rollback-netcode",
+    accent: "#f43f5e",
+    category: "systems",
+    thumb: "thumbs/rollback-netcode.jpg",
+    module: "./entries/rollback-netcode/index.js",
+    title: {
+      en: "Rollback Netcode (GGPO) vs Delay",
+      pl: "Rollback Netcode (GGPO) kontra Delay",
+    },
+    kicker: {
+      en: "FIGHTING NETCODE · PLAYABLE MINI-GAME #43",
+      pl: "NETCODE BIJATYK · GRYWALNA MINI-GRA #43",
+    },
+    question: {
+      en: "Why fighting games feel responsive at 120ms ping by predicting remote inputs and rewinding 4 frames in 1 millisecond when corrected.",
+      pl: "Czemu bijatyki reagują w 0 ms przy pingu 120 ms — przewidując ruch wroga i cofając symulację o kilka klatek po korekcie.",
+    },
+    note: {
+      en: "Throw strikes with Space / Click (A/D to step, [V] cycles 60 / 120 / 200ms RTT)! With GGPO Rollback ON [T], your attack launches on Frame 0 (0ms input lag!) while delayed remote packets flash a ghost silhouette and rewind cleanly on the frame tape. Switch [T] to Delay-Based to feel sluggish 120ms underwater controls.",
+      pl: "Atakuj Spacją / Klikiem (A/D krok, [V] zmienia ping 60 / 120 / 200 ms)! Z GGPO Rollback [T] Twój cios rusza w klatce 0 (0 ms opóźnienia!), a spóźniony pakiet wroga pokazuje ducha korekty i cofa 4 klatki. Przełącz [T] na Delay-Based, by poczuć sterowanie jak pod wodą.",
+    },
+    hint: {
+      en: "A/D = Step · Space / Click = Strike · V = Cycle Ping · T = GGPO Rollback / Delay-Based · R = Reset",
+      pl: "A/D = Krok · Spacja / Klik = Cios · V = Zmień Ping · T = GGPO Rollback / Delay · R = Reset",
+    },
+  },
+  {
+    id: "jump-point-search",
+    accent: "#c084fc",
+    category: "crowds",
+    thumb: "thumbs/jump-point-search.jpg",
+    module: "./entries/jump-point-search/index.js",
+    title: {
+      en: "Jump Point Search (JPS) vs A*",
+      pl: "Jump Point Search (JPS) kontra A*",
+    },
+    kicker: {
+      en: "FAST PATHFINDING · PLAYABLE MINI-GAME #42",
+      pl: "SZYBKI PATHFINDING · GRYWALNA MINI-GRA #42",
+    },
+    question: {
+      en: "How JPS skips symmetric open-space tiles and leaps straight to forced-neighbor corners, finding the exact A* shortest path 10× faster.",
+      pl: "Jak JPS przeskakuje symetryczne otwarte pola aż do narożników ścian, znajdując tę samą ścieżkę co A* nawet 10× szybciej.",
+    },
+    note: {
+      en: "Click any open tile on the 18×12 plaza to race the pathfinder in slow motion (or press [V] to swap wall layouts)! With JPS ON [T], violet laser rays jump across empty space and expand only ~20 forced-neighbor Jump Points. Switch [T] to Classic A* to watch the search flood 150+ tiles for the exact same route.",
+      pl: "Kliknij dowolny kafelek planszy 18×12, by obejrzeć wyścig przeszukiwania w zwolnionym tempie (lub [V] zmień układ murów)! Z JPS [T] fioletowe promienie przeskakują puste przestrzenie w ~20 węzłach. Przełącz [T] na klasyczne A*, by zobaczyć zalanie 150+ pól dla tej samej trasy.",
+    },
+    hint: {
+      en: "Click = Move Goal & Replay Wave · V = Swap Walls · T = JPS / Classic A* · R = Reset",
+      pl: "Klik = Przenieś Cel i Powtórz Falę · V = Zmień Ściany · T = JPS / Klasyczne A* · R = Reset",
+    },
+  },
+  {
+    id: "formation-slots",
+    accent: "#60a5fa",
+    category: "crowds",
+    thumb: "thumbs/formation-slots.jpg",
+    module: "./entries/formation-slots/index.js",
+    title: {
+      en: "Formation Movement & Squad Slots",
+      pl: "Szyki Bojowe i Sloty Oddziału (RTS)",
+    },
+    kicker: {
+      en: "SQUAD TACTICS · PLAYABLE MINI-GAME #41",
+      pl: "TAKTYKA ODDZIAŁU · GRYWALNA MINI-GRA #41",
+    },
+    question: {
+      en: "How RTS squads hold Wedge/Phalanx formations, squeeze cleanly through narrow castle gates, and fan back out instead of jamming.",
+      pl: "Jak oddziały w RTS utrzymują klin lub falangę, zwężają szyk w wąskiej bramie i rozkładają się za nią bez korków.",
+    },
+    note: {
+      en: "Click either side of the fortress gate to march 10 knights across (press [V] to cycle Wedge / Phalanx / Line)! With Formation Slots ON [T], units follow virtual anchor slots that compress cleanly through the narrow stone choke and fan back out. Turn [T] OFF for Single-Point Blob pathing and watch them deadlock.",
+      pl: "Kliknij po dowolnej stronie bramy, by poprowadzić 10 rycerzy ([V] przełącza Klin / Falangę / Linię)! Ze Slotami Szyku [T] oddział zwęża kolumnę w wąskim gardle i odtwarza formację za bramą. Wyłącz [T], by wszyscy ruszyli w jeden punkt i zaklinowali się w tłumie.",
+    },
+    hint: {
+      en: "Click = March Squad · V = Cycle Wedge / Phalanx / Line · T = Formation Slots / Single-Point Blob · R = Reset",
+      pl: "Klik = Marsz Oddziału · V = Zmień Szyk · T = Sloty Formacji / Kula w 1 Punkt · R = Reset",
+    },
+  },
+  {
+    id: "navmesh-funnel",
+    accent: "#34d399",
+    category: "crowds",
+    thumb: "thumbs/navmesh-funnel.jpg",
+    module: "./entries/navmesh-funnel/index.js",
+    title: {
+      en: "NavMesh & Funnel String-Pulling",
+      pl: "NavMesh i Algorytm Lejka (Funnel)",
+    },
+    kicker: {
+      en: "MESH NAVIGATION · PLAYABLE MINI-GAME #40",
+      pl: "NAWIGACJA PO SIATCE · GRYWALNA MINI-GRA #40",
+    },
+    question: {
+      en: "Why 3D game characters glide tight around pillar corners instead of zig-zagging clumsily from triangle center to triangle center.",
+      pl: "Czemu postacie w grach 3D ścinają rogi filarów po napiętej linii zamiast wężykować przez środki trójkątów siatki.",
+    },
+    note: {
+      en: "Click any spot in the stone courtyard (or press [V] to swap corners) to watch NavMesh triangle routing live! With Funnel String-Pulling ON [T], the path pulls taut like a golden thread across green portal edges right around pillars. Toggle [T] OFF to watch naive centroid-to-centroid zig-zagging add 30% wasted distance.",
+      pl: "Kliknij dowolny punkt dziedzińca (lub [V] zamień narożniki), by zobaczyć routing po trójkątach NavMesh! Z Algorytmem Lejka [T] złota ścieżka napina się jak nitka po rogach filarów. Wyłącz [T], by zobaczyć kanciaste wężykowanie po środkach trójkątów (+30% dłuższej drogi).",
+    },
+    hint: {
+      en: "Click = Set Goal · V = Swap Corner Route · X = Toggle NavMesh · T = Funnel Smooth / Raw Centroids",
+      pl: "Klik = Ustaw Cel · V = Zamień Trasę · X = Siatka NavMesh · T = Lejek / Środki Trójkątów",
+    },
+  },
+  {
+    id: "sound-propagation",
+    accent: "#22d3ee",
+    category: "ai",
+    thumb: "thumbs/sound-propagation.jpg",
+    module: "./entries/sound-propagation/index.js",
+    title: {
+      en: "Sound Propagation & Acoustics",
+      pl: "Propagacja Dźwięku i Akustyka Korytarzy",
+    },
+    kicker: {
+      en: "STEALTH AUDIO · PLAYABLE MINI-GAME #39",
+      pl: "AKUSTYKA SKRADANKI · GRYWALNA MINI-GRA #39",
+    },
+    question: {
+      en: "How stealth games route noise waves through doorways and dampen steps on carpet instead of alerting guards behind solid brick walls.",
+      pl: "Jak skradanki prowadzą falę dźwięku korytarzami i tłumią kroki na dywanie, zamiast alarmować strażników za grubym murem.",
+    },
+    note: {
+      en: "Move with WASD and Click or press Space to emit noise inside the 3-room vault (press [V] to slam the heavy door shut)! With Corridor Acoustics ON [T], weighted BFS sound waves flow around walls and fade on the red carpet while thick stone shields Guard A. Turn [T] OFF for a naive radius circle that leaks straight through masonry.",
+      pl: "Poruszaj się WASD i kliknij lub wciśnij Spację, by wywołać hałas w skarbcu ([V] zamyka ciężkie drzwi)! Z Akustyką Korytarzy [T] fala dźwięku płynie przez przejścia i tłumi się na dywanie, a mur chroni Strażnika A. Wyłącz [T], by naiwny okrąg przeszedł przez lity mur.",
+    },
+    hint: {
+      en: "WASD = Move · Click / Space = Make Noise · V = Open/Close Door · T = Corridor Acoustics / Naive Radius",
+      pl: "WASD = Ruch · Klik / Spacja = Hałas · V = Otwórz/Zamknij Drzwi · T = Akustyka / Naiwny Okrąg",
+    },
+  },
+  {
+    id: "offscreen-courtesy",
+    accent: "#eab308",
+    category: "ai",
+    thumb: "thumbs/offscreen-courtesy.jpg",
+    module: "./entries/offscreen-courtesy/index.js",
+    title: {
+      en: "First-Shot Miss & Off-Screen AI",
+      pl: "Chybiony Pierwszy Strzał i AI Poza Kadrem",
+    },
+    kicker: {
+      en: "FAIR COMBAT AI · PLAYABLE MINI-GAME #38",
+      pl: "UCZCIWE AI WALKI · GRYWALNA MINI-GRA #38",
+    },
+    question: {
+      en: "Why BioShock and Doom enemies deliberately miss their first warning shot and wait politely when standing behind your camera.",
+      pl: "Czemu wrogowie w BioShocku i Doomie celowo chybiają pierwszy strzał ostrzegawczy i czekają, gdy stoją za Twoimi plecami.",
+    },
+    note: {
+      en: "Rotate your 72° camera FOV cone with A/D or Click (press [V] for an Ambush Volley)! With Fair Courtesy ON [T], enemies outside your view hold fire with amber warning barks, and every gunner's first shot whizzes wide as a bright tracer so you can react. Switch [T] to Realistic Aim to get insta-deleted from off-screen.",
+      pl: "Obracaj stożek kamery 72° (A/D lub Klik, [V] Zasadzka)! Z Uprzejmym AI [T] wrogowie poza kadrem wstrzymują ogień i dają sygnał, a pierwszy strzał zawsze śwista tuż obok jako ostrzeżenie. Przełącz [T] na Realistyczne AI, by zginąć w sekundę zza pleców.",
+    },
+    hint: {
+      en: "A/D / Click = Aim Camera FOV · V = Ambush Volley · T = Fair Courtesy / Realistic Aim · R = Reset",
+      pl: "A/D / Klik = Obróć Kamerę · V = Salwa Zasadzki · T = Uprzejme AI / Realistyczne · R = Reset",
+    },
+  },
+  {
+    id: "influence-maps",
+    accent: "#f43f5e",
+    category: "ai",
+    thumb: "thumbs/influence-maps.jpg",
+    module: "./entries/influence-maps/index.js",
+    title: {
+      en: "Influence Maps & Tactical Flanking",
+      pl: "Mapy Wpływu i Taktyczne Flankowanie",
+    },
+    kicker: {
+      en: "TACTICAL AI · PLAYABLE MINI-GAME #37",
+      pl: "TAKTYCZNE AI · GRYWALNA MINI-GRA #37",
+    },
+    question: {
+      en: "How enemy squads read a live 3D threat-and-cover heatmap to hug stone walls and pinch you from the flanks instead of running into bullets.",
+      pl: "Jak oddziały AI czytają żywą mapę zagrożeń i osłon 3D, by kryć się za murkami i zachodzić z flanki zamiast biec pod lufę.",
+    },
+    note: {
+      en: "Click or press A/D to aim your turret across the courtyard (watch the 3D floor heatmap update live: red threat cone, green wall cover, gold flanks)! With Influence Maps ON [T], 4 raiders score every tile to hug walls and flank behind you. Turn [T] OFF for naive straight-line charging straight into your fire cone.",
+      pl: "Kliknij lub użyj A/D, by obracać wieżyczkę (mapa ciepła 3D przelicza się na żywo: czerwone zagrożenie, zielone osłony, złote flanki)! Z Mapą Wpływu [T] oddział kryje się za murkami i zachodzi od tyłu. Wyłącz [T], by wrogowie biegli prosto pod ostrzał.",
+    },
+    hint: {
+      en: "Click / A/D = Aim Turret · V = Sweep 90° · X = Toggle Heatmap · T = Influence AI / Naive Charge",
+      pl: "Klik / A/D = Celuj Wieżyczką · V = Obrót 90° · X = Mapa Ciepła · T = Mapa Wpływu / Ślepa Szarża",
+    },
+  },
+  {
+    id: "goap-planner",
+    accent: "#a855f7",
+    category: "ai",
+    thumb: "thumbs/goap-planner.jpg",
+    module: "./entries/goap-planner/index.js",
+    title: {
+      en: "GOAP — Goal-Oriented Action Planning",
+      pl: "GOAP — Planowanie Akcji Celowych (F.E.A.R.)",
+    },
+    kicker: {
+      en: "EMERGENT AI · PLAYABLE MINI-GAME #36",
+      pl: "PLANOWANIE AI · GRYWALNA MINI-GRA #36",
+    },
+    question: {
+      en: "How F.E.A.R. soldiers dynamically chain actions together — and instantly invent a backup plan when you blow up their ammo crate.",
+      pl: "Jak żołnierze z F.E.A.R. układają w locie łańcuch akcji — i natychmiast wymyślają plan B, gdy zniszczysz im skrzynię z amunicją.",
+    },
+    note: {
+      en: "Watch the live GOAP plan chain in the top-right HUD ([Get Ammo] → [Take Cover] → [Flank Fire]) — then Click the Ammo Crate or press [V] to blow it up! With GOAP ON [T], the soldier replans in 1 tick ([Grab Grenade] → [Rush Flank]). Switch [T] to Rigid Script to watch hardcoded AI freeze at the rubble.",
+      pl: "Obserwuj łańcuch GOAP w prawym górnym rogu ([Amunicja] → [Osłona] → [Ogień]), a potem kliknij skrzynię lub wciśnij [V], by ją zniszczyć! Z GOAP [T] żołnierz w 1 klatce przelicza plan B ([Granat] → [Szarża]). Wyłącz [T], by sztywny skrypt utknął na gruzach.",
+    },
+    hint: {
+      en: "Click Crate / V = Destroy or Restore Ammo · T = GOAP Planner / Rigid Script · R = Reset",
+      pl: "Klik Skrzynię / V = Zniszcz lub Odnów Amunicję · T = Planer GOAP / Sztywny Skrypt · R = Reset",
+    },
+  },
+  {
+    id: "recoil-patterns",
+    accent: "#fb923c",
+    category: "feel",
+    thumb: "thumbs/recoil-patterns.jpg",
+    module: "./entries/recoil-patterns/index.js",
+    title: {
+      en: "Recoil Patterns & Dynamic Spread",
+      pl: "Wzory Odrzutu i Dynamiczny Rozrzut",
+    },
+    kicker: {
+      en: "GUNPLAY FEEL · PLAYABLE MINI-GAME #35",
+      pl: "GUNPLAY · GRYWALNA MINI-GRA #35",
+    },
+    question: {
+      en: "Why competitive shooters use learnable spray patterns players can counter-pull instead of pure random bullet bloom.",
+      pl: "Czemu strzelanki turniejowe stosują powtarzalny wzór odrzutu do kontrowania myszką zamiast czysto losowego rozrzutu.",
+    },
+    note: {
+      en: "Fire 14-round bursts at the illuminated range target with Space / Click (or press [V])! With Learned Spray Pattern ON [T] and Counter-Pull [X], pulling inverse to the deterministic 7-curve stacks 90%+ hits into the bullseye. Toggle [T] to Pure Random RNG Bloom to see bullets scatter uncontrollably even when compensating.",
+      pl: "Oddaj 14-strzałową serię do tarczy Spacją / Klikiem (lub [V])! Ze Wzorem Odrzutu [T] i Kontrą [X] odwrócenie krzywej „7” skupia 90%+ trafień w dziesiątce. Przełącz [T] na czysty losowy rozrzut RNG, gdzie nawet idealna kontra sieje po całej ścianie.",
+    },
+    hint: {
+      en: "Space / Click / V = Fire 14-Round Burst · X = Counter-Pull · T = Spray Pattern / Pure RNG · R = Clear",
+      pl: "Spacja / Klik / V = Seria 14 Strzałów · X = Kontra Odrzutu · T = Wzór Odrzutu / Czysty RNG · R = Wyczyść",
+    },
+  },
+  {
+    id: "ledge-mantle",
+    accent: "#10b981",
+    category: "feel",
+    thumb: "thumbs/ledge-mantle.jpg",
+    module: "./entries/ledge-mantle/index.js",
+    title: {
+      en: "Ledge Grab & Auto-Mantle",
+      pl: "Łapanie Krawędzi i Auto-Mantle",
+    },
+    kicker: {
+      en: "PARKOUR FEEL · PLAYABLE MINI-GAME #34",
+      pl: "PARKOUR · GRYWALNA MINI-GRA #34",
+    },
+    question: {
+      en: "How modern platformers and shooters turn frustrating 30cm-short jumps into heroic automatic ledge vaults using chest-vs-head probes.",
+      pl: "Jak nowoczesne gry zamieniają irytujący skok krótszy o 30 cm w płynne złapanie gzymsu i podciągnięcie dzięki dwóm promieniom.",
+    },
+    note: {
+      en: "Leap across the stepped temple canyon with A/D + Space (or press [V] Short-Jump Test right into the 30cm-short grab window)! With Auto-Mantle ON [T], dual chest-hit / head-clear probes catch the glowing green grab volume and vault smoothly up. Turn [T] OFF to bump face-first into the stone lip and plummet.",
+      pl: "Skacz po tarasach kanionu (A/D + Spacja lub [V] Test Krótkiego Skoku w strefę 30 cm pod gzymsem)! Z Auto-Mantle [T] promienie klatki i głowy wykrywają krawędź i podciągają bohatera na górę. Wyłącz [T], by odbić się od ściany i spaść w przepaść.",
+    },
+    hint: {
+      en: "A/D = Run · Space = Jump · V = Short-Jump Mantle Test · T = Auto-Mantle / Strict Capsule · R = Reset",
+      pl: "A/D = Bieg · Spacja = Skok · V = Test Krótkiego Skoku · T = Auto-Mantle / Ścisła Kapsuła · R = Reset",
+    },
+  },
+  {
+    id: "fixed-timestep",
+    accent: "#ef4444",
+    category: "feel",
+    thumb: "thumbs/fixed-timestep.jpg",
+    module: "./entries/fixed-timestep/index.js",
+    title: {
+      en: "Fixed Timestep vs Frame-Rate dt Bugs",
+      pl: "Stały Krok Fizyki (Fixed dt) kontra Błędy FPS",
+    },
+    kicker: {
+      en: "ENGINE LOOP · PLAYABLE MINI-GAME #33",
+      pl: "PĘTLA SILNIKA · GRYWALNA MINI-GRA #33",
+    },
+    question: {
+      en: "Why tying physics directly to frame delta-time lets players tunnel through walls at 15 FPS or jump half as high at 144 FPS.",
+      pl: "Czemu uzależnienie fizyki od surowego dt klatki pozwala przenikać przez ściany w 15 FPS i psuje wysokość skoku w 144 FPS.",
+    },
+    note: {
+      en: "Compare both lanes side-by-side while cycling frame rate with [V] (15 / 30 / 60 / 144 FPS) and jumping with Space! With Fixed 1/60s Accumulator ON [T], jump arcs and thin-wall collisions stay 100% identical at every FPS. Turn [T] OFF for Raw Frame dt and watch 15 FPS overshoot right through the laser wall!",
+      pl: "Porównaj oba tory przy zmianie klatkażu [V] (15 / 30 / 60 / 144 FPS) i skoku Spacją! Ze Stałym Krokiem 1/60s [T] łuk skoku i kolizja ze ścianą są identyczne niezależnie od FPS. Wyłącz [T] na surowe dt i zobacz, jak w 15 FPS biegacz przenika przez laserową ścianę!",
+    },
+    hint: {
+      en: "Space = Sync Jump · V = Cycle 15/30/60/144 FPS · T = Fixed dt / Raw Frame dt · R = Reset",
+      pl: "Spacja = Wspólny Skok · V = Zmień FPS · T = Stały Krok / Surowe dt · R = Reset",
+    },
+  },
+  {
+    id: "variable-jump",
+    accent: "#f59e0b",
+    category: "feel",
+    thumb: "thumbs/variable-jump.jpg",
+    module: "./entries/variable-jump/index.js",
+    title: {
+      en: "Variable Jump & Apex Hang-Time",
+      pl: "Zmienny Skok i Nieważkość w Szczycie",
+    },
+    kicker: {
+      en: "PLATFORMER ARC · PLAYABLE MINI-GAME #32",
+      pl: "ŁUK SKOKU · GRYWALNA MINI-GRA #32",
+    },
+    question: {
+      en: "Why Mario and Hollow Knight cut upward speed on release, float slightly at the peak, and fall 1.9× faster instead of using textbook parabolas.",
+      pl: "Czemu Mario i Hollow Knight ucinają skok po puszczeniu przycisku, dają lekki zawis na szczycie i spadają 1,9× szybciej zamiast szkolnej paraboli.",
+    },
+    note: {
+      en: "Tap Space for a crisp short hop under the low spikes, or hold Space for a high vault across the gap (press [V] to toggle Short/Full auto-demo)! With Mario/Celeste Curve ON [T], watch the 3D trail shift cyan (rise) → gold (0.45× Apex Hang-Time) → coral (1.9× Snappy Fall). Turn [T] OFF for floaty symmetric moon-gravity.",
+      pl: "Krótko stuknij Spację pod niski kolec albo przytrzymaj dla wysokiego skoku ([V] porównanie)! Z Krzywą Mario/Celeste [T] ślad 3D pokazuje wzrost (cyjan) → zawis 0,45× na szczycie (złoto) → ciężkie opadanie 1,9× (koral). Wyłącz [T] dla pływającej paraboli z podręcznika.",
+    },
+    hint: {
+      en: "A/D = Run · Tap/Hold Space = Short/Full Jump · V = Compare Hop/Vault · T = Smart Curve / Symmetric",
+      pl: "A/D = Bieg · Stuk/Przytrzymaj Spację = Krótki/Wysoki Skok · V = Porównaj · T = Krzywa / Symetryczna",
+    },
+  },
+  {
+    id: "corner-correction",
+    accent: "#38bdf8",
+    category: "feel",
+    thumb: "thumbs/corner-correction.jpg",
+    module: "./entries/corner-correction/index.js",
+    title: {
+      en: "Corner Correction & Ceiling Nudge",
+      pl: "Korekcja Narożników (Ceiling Nudge)",
+    },
+    kicker: {
+      en: "PLATFORMER FEEL · PLAYABLE MINI-GAME #31",
+      pl: "PLATFORMER FEEL · GRYWALNA MINI-GRA #31",
+    },
+    question: {
+      en: "How Celeste and Mario secretly slide your head a few pixels sideways around a ceiling corner instead of bonking you into a pit.",
+      pl: "Jak Celeste i Mario potajemnie przesuwają głowę bohatera o parę pikseli obok krawędzi sufitu zamiast odbić go w przepaść.",
+    },
+    note: {
+      en: "Jump upward through the narrow stone chimney with A/D + Space (or press [V] Corner Graze Test right under the overhang edge)! With Corner Nudge ON [T], twin head probes detect the edge graze and slip you smoothly past the brick lip. Turn [T] OFF for Strict Collision to bonk dead-stop on a 2-pixel corner.",
+      pl: "Wskocz przez wąski kamienny komin (A/D + Spacja lub [V] Test Otarcia Narożnika)! Z Korekcją Narożników [T] dwa czujniki nad głową wykrywają otarcie i gładko wsuwają postać w szczelinę. Wyłącz [T], by odbić się głową o 2-pikselowy róg.",
+    },
+    hint: {
+      en: "A/D = Move · Space = Jump · V = Corner Graze Test · T = Corner Nudge / Strict Bonk · R = Reset",
+      pl: "A/D = Ruch · Spacja = Skok · V = Test Narożnika · T = Korekcja / Ścisłe Odbicie · R = Reset",
+    },
+  },
+  {
     id: "step-up-slopes",
     accent: "#ec4899",
     category: "feel",
